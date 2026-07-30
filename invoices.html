@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoices — CRM</title>
+<meta name="theme-color" content="#1E4E54">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='47' fill='%231E4E54' stroke='%23E2915C' stroke-width='6'/%3E%3Cpath d='M56 18 26 56h24l-4 26 30-38H52l4-26Z' fill='%23EAF3F1'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+.inv-toolbar { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+.inv-list { display: flex; flex-direction: column; gap: 12px; }
+.inv-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: center; cursor: pointer; }
+.inv-card:hover { border-color: var(--teal); }
+.inv-main { flex: 1; min-width: 200px; }
+.inv-main h3 { margin: 0 0 4px; font-size: 1rem; }
+.inv-main .sub { font-size: 0.82rem; color: var(--ink-soft); }
+.inv-side { display: flex; align-items: center; gap: 12px; }
+.inv-total { font-family: "Poppins", sans-serif; font-weight: 700; color: var(--teal); font-size: 1.05rem; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(20,40,45,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.modal-card { background: var(--surface); border-radius: var(--radius); padding: 26px; width: 100%; max-width: 460px; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+.modal-card.wide { max-width: 720px; }
+.modal-card h2 { margin: 0 0 18px; font-size: 1.2rem; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; flex-wrap: wrap; }
+.hidden { display: none !important; }
+.form-status { font-size: 0.85rem; margin: 0 0 12px; min-height: 1.1em; }
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; min-width: 0; }
+.field-help { font-size: 0.76rem; color: var(--ink-soft); margin: -10px 0 14px; }
+.readonly-fill { background: var(--mint); border: 1.5px dashed var(--line); border-radius: 10px; padding: 11px 13px; font-size: 0.88rem; color: var(--ink-soft); min-height: 1.2em; }
+
+.line-items-head, .line-item-row { display: grid; grid-template-columns: 1fr 70px 100px 100px 34px; gap: 8px; align-items: center; }
+.line-items-head { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); padding: 0 2px 4px; }
+.line-item-row { margin-bottom: 8px; }
+.line-item-row input { width: 100%; }
+.line-item-total { font-size: 0.88rem; text-align: right; padding-right: 4px; }
+.btn-remove-line { padding: 4px 8px; font-size: 0.75rem; color: var(--danger); border: 1px solid var(--danger); background: none; border-radius: 8px; cursor: pointer; }
+.totals-box { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.totals-row { display: flex; gap: 20px; font-size: 0.88rem; width: 220px; justify-content: space-between; }
+.totals-row.grand { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 1rem; color: var(--teal); border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <nav class="sidebar" id="sidebarNav"></nav>
+
+  <div class="main-col">
+    <div class="topbar">
+      <div id="topbarBrand"></div>
+    </div>
+
+    <div class="page-content">
+      <div class="page-header">
+        <h1>Invoices</h1>
+        <p>Raise, download, and email invoices to clients.</p>
+      </div>
+
+      <div class="inv-toolbar">
+        <button class="btn btn-primary" id="addInvoiceBtn">+ New invoice</button>
+      </div>
+
+      <div id="invoiceList"><div class="empty-note">Loading invoices...</div></div>
+    </div>
+  </div>
+</div>
+
+<nav class="tab-bar" id="tabBarNav"></nav>
+
+<div class="modal-backdrop hidden" id="invoiceModal">
+  <div class="modal-card wide">
+    <h2 id="invoiceModalTitle">New invoice</h2>
+    <p class="form-status" id="formStatus"></p>
+    <form id="invoiceForm">
+      <input type="hidden" id="invoiceId">
+      <div class="field">
+        <label for="clientSelect">Client *</label>
+        <select id="clientSelect" required>
+          <option value="">-- Select a client --</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Bill to</label>
+        <div class="readonly-fill" id="addressFill">Select a client to auto-fill their address</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="invoiceNumber">Invoice number</label>
+          <input type="text" id="invoiceNumber" placeholder="e.g. INV-0001">
+        </div>
+        <div class="field">
+          <label for="statusSelect">Status</label>
+          <select id="statusSelect">
+            <option value="draft">Draft</option>
+            <option value="sent">Sent</option>
+            <option value="paid">Paid</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="issueDate">Issue date *</label>
+          <input type="date" id="issueDate" required>
+        </div>
+        <div class="field">
+          <label for="dueDate">Due date</label>
+          <input type="date" id="dueDate">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Line items</label>
+        <div class="line-items-head">
+          <span>Description</span><span>Qty</span><span>Unit price (£)</span><span>Total</span><span></span>
+        </div>
+        <div id="lineItemsList"></div>
+        <button type="button" class="btn btn-ghost" id="addLineItemBtn" style="margin-top:4px;">+ Add line item</button>
+      </div>
+
+      <div class="field-row">
+        <div class="field" style="max-width:160px;">
+          <label for="vatRate">VAT rate (%)</label>
+          <input type="number" step="0.01" min="0" id="vatRate" value="0">
+        </div>
+      </div>
+
+      <div class="totals-box">
+        <div class="totals-row"><span>Subtotal</span><span id="totalSubtotal">£0.00</span></div>
+        <div class="totals-row"><span>VAT</span><span id="totalVat">£0.00</span></div>
+        <div class="totals-row grand"><span>Total</span><span id="totalGrand">£0.00</span></div>
+      </div>
+
+      <div class="field">
+        <label for="notes">Notes</label>
+        <textarea id="notes" placeholder="Payment terms, bank details, thank-you note..."></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger hidden" id="deleteInvoiceBtn">Delete</button>
+        <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
+        <button type="button" class="btn btn-ghost" id="downloadPdfBtn">⬇️ Download PDF</button>
+        <button type="button" class="btn btn-accent" id="saveAndEmailBtn">📧 Save &amp; email to client</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save invoice</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="invoiceEmailModal">
+  <div class="modal-card">
+    <h2>Send invoice</h2>
+    <p class="form-status" id="invoiceEmailStatus"></p>
+    <div class="field">
+      <label>To</label>
+      <div class="readonly-fill" id="invoiceEmailTo"></div>
+    </div>
+    <div class="field">
+      <label for="invoiceEmailSubject">Subject</label>
+      <input type="text" id="invoiceEmailSubject">
+    </div>
+    <div class="field">
+      <label for="invoiceEmailBody">Message</label>
+      <textarea id="invoiceEmailBody" style="min-height:140px;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="invoiceEmailCancelBtn">Cancel</button>
+      <button type="button" class="btn btn-primary" id="invoiceEmailSendBtn">Send</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+initAppShell("invoices");
+
+let allInvoices = [];
+let allClients = [];
+let businessId = null;
+let businessBankDetails = null;
+let editingInvoiceId = null;
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function money(n) {
+  return "£" + (Number(n) || 0).toFixed(2);
+}
+
+/* ============================== Line items (add/remove rows) ============================== */
+function createLineItems(containerId, addBtnId, onChange) {
+  let items = [];
+  const container = document.getElementById(containerId);
+
+  function rowHtml(item, idx) {
+    const qty = item.qty ?? 1;
+    const price = item.unit_price ?? 0;
+    const total = (Number(qty) || 0) * (Number(price) || 0);
+    return `
+    <div class="line-item-row" data-row="${idx}">
+      <input type="text" data-field="description" data-idx="${idx}" value="${escapeHtml(item.description || "")}" placeholder="e.g. Consumer unit replacement">
+      <input type="number" step="1" min="0" data-field="qty" data-idx="${idx}" value="${qty}">
+      <input type="number" step="0.01" min="0" data-field="unit_price" data-idx="${idx}" value="${price}">
+      <div class="line-item-total">${money(total)}</div>
+      <button type="button" class="btn-remove-line" data-remove="${idx}" title="Remove">✕</button>
+    </div>`;
+  }
+
+  function render() {
+    if (!items.length) {
+      container.innerHTML = `<p class="field-help" style="margin:0 0 8px;">No line items yet -- click "+ Add line item" below.</p>`;
+    } else {
+      container.innerHTML = items.map((it, idx) => rowHtml(it, idx)).join("");
+    }
+    if (onChange) onChange(items);
+  }
+
+  container.addEventListener("input", (e) => {
+    const idx = e.target.dataset.idx;
+    const field = e.target.dataset.field;
+    if (idx === undefined || !field) return;
+    items[idx][field] = field === "description" ? e.target.value : e.target.value;
+    // Update just this row's total + fire onChange, without a full re-render (would steal focus)
+    const qty = Number(items[idx].qty) || 0;
+    const price = Number(items[idx].unit_price) || 0;
+    const row = container.querySelector(`[data-row="${idx}"] .line-item-total`);
+    if (row) row.textContent = money(qty * price);
+    if (onChange) onChange(items);
+  });
+  container.addEventListener("click", (e) => {
+    if (e.target.dataset.remove !== undefined && e.target.dataset.remove !== "") {
+      items.splice(Number(e.target.dataset.remove), 1);
+      render();
+    }
+  });
+  document.getElementById(addBtnId).addEventListener("click", () => {
+    items.push({ description: "", qty: 1, unit_price: 0 });
+    render();
+  });
+
+  return {
+    reset() { items = [{ description: "", qty: 1, unit_price: 0 }]; render(); },
+    load(arr) { items = Array.isArray(arr) && arr.length ? arr.map(i => Object.assign({}, i)) : [{ description: "", qty: 1, unit_price: 0 }]; render(); },
+    getData() { return items.map(i => ({ description: i.description || "", qty: Number(i.qty) || 0, unit_price: Number(i.unit_price) || 0 })); },
+  };
+}
+
+function computeTotals(lineItems, vatRate) {
+  const subtotal = lineItems.reduce((sum, i) => sum + (Number(i.qty) || 0) * (Number(i.unit_price) || 0), 0);
+  const vat = subtotal * ((Number(vatRate) || 0) / 100);
+  return { subtotal, vat, total: subtotal + vat };
+}
+
+function refreshTotals() {
+  const items = lineItemsCtrl.getData();
+  const vatRate = document.getElementById("vatRate").value;
+  const { subtotal, vat, total } = computeTotals(items, vatRate);
+  document.getElementById("totalSubtotal").textContent = money(subtotal);
+  document.getElementById("totalVat").textContent = money(vat);
+  document.getElementById("totalGrand").textContent = money(total);
+}
+
+const lineItemsCtrl = createLineItems("lineItemsList", "addLineItemBtn", refreshTotals);
+document.getElementById("vatRate").addEventListener("input", refreshTotals);
+
+/* ============================== Loading ============================== */
+async function loadClients() {
+  const { data } = await supabaseClient.from("clients").select("id, name, address, email").eq("business_id", businessId).order("name");
+  allClients = data || [];
+  const select = document.getElementById("clientSelect");
+  select.innerHTML = `<option value="">-- Select a client --</option>` +
+    allClients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+}
+
+document.getElementById("clientSelect").addEventListener("change", (e) => {
+  const client = allClients.find(c => c.id === e.target.value);
+  document.getElementById("addressFill").textContent = client && client.address ? client.address : "No address on file for this client";
+});
+
+// Due on receipt is the default -- keep due date matching issue date until the user edits due date directly.
+document.getElementById("issueDate").addEventListener("input", (e) => {
+  document.getElementById("dueDate").value = e.target.value;
+});
+
+function nextInvoiceNumber() {
+  const nums = allInvoices.map(i => {
+    const m = /^INV-(\d+)$/.exec(i.invoice_number || "");
+    return m ? Number(m[1]) : 0;
+  });
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `INV-${String(next).padStart(4, "0")}`;
+}
+
+function renderInvoices(invoices) {
+  const target = document.getElementById("invoiceList");
+  if (!invoices.length) {
+    target.innerHTML = `<div class="empty-note">No invoices yet -- create your first one above.</div>`;
+    return;
+  }
+  target.innerHTML = `<div class="inv-list">${invoices.map(inv => {
+    const { total } = computeTotals(inv.line_items || [], inv.vat_rate);
+    const badgeClass = inv.status === "paid" ? "good" : inv.status === "sent" ? "pending" : "muted";
+    return `
+    <div class="inv-card" data-invoice="${inv.id}">
+      <div class="inv-main">
+        <h3>${escapeHtml(inv.invoice_number || "Draft invoice")}</h3>
+        <div class="sub">${inv.clients ? "👤 " + escapeHtml(inv.clients.name) : "No client linked"} · Issued ${new Date(inv.issue_date).toLocaleDateString("en-GB")}</div>
+      </div>
+      <div class="inv-side">
+        <span class="inv-total">${money(total)}</span>
+        <span class="badge ${badgeClass}">${escapeHtml(inv.status)}</span>
+      </div>
+    </div>`;
+  }).join("")}</div>`;
+
+  target.querySelectorAll("[data-invoice]").forEach(card => card.addEventListener("click", () => openModal(card.dataset.invoice)));
+}
+
+async function loadInvoices() {
+  const target = document.getElementById("invoiceList");
+  const { data, error } = await supabaseClient
+    .from("invoices")
+    .select("*, clients(name, address, email)")
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    target.innerHTML = `<div class="empty-note">Couldn't load invoices: ${escapeHtml(error.message)}</div>`;
+    return;
+  }
+  allInvoices = data || [];
+  renderInvoices(allInvoices);
+}
+
+/* ============================== Modal ============================== */
+function openModal(invoiceId) {
+  editingInvoiceId = invoiceId || null;
+  const form = document.getElementById("invoiceForm");
+  form.reset();
+  document.getElementById("formStatus").textContent = "";
+  document.getElementById("addressFill").textContent = "Select a client to auto-fill their address";
+  document.getElementById("invoiceId").value = "";
+  document.getElementById("deleteInvoiceBtn").classList.toggle("hidden", !invoiceId);
+
+  if (invoiceId) {
+    const inv = allInvoices.find(i => i.id === invoiceId);
+    document.getElementById("invoiceModalTitle").textContent = "Edit invoice";
+    document.getElementById("saveBtn").textContent = "Save changes";
+    document.getElementById("invoiceId").value = inv.id;
+    document.getElementById("clientSelect").value = inv.client_id || "";
+    if (inv.clients && inv.clients.address) document.getElementById("addressFill").textContent = inv.clients.address;
+    document.getElementById("invoiceNumber").value = inv.invoice_number || "";
+    document.getElementById("statusSelect").value = inv.status || "draft";
+    document.getElementById("issueDate").value = inv.issue_date || "";
+    document.getElementById("dueDate").value = inv.due_date || "";
+    document.getElementById("vatRate").value = inv.vat_rate ?? 0;
+    document.getElementById("notes").value = inv.notes || "";
+    lineItemsCtrl.load(inv.line_items);
+  } else {
+    document.getElementById("invoiceModalTitle").textContent = "New invoice";
+    document.getElementById("saveBtn").textContent = "Save invoice";
+    document.getElementById("invoiceNumber").value = nextInvoiceNumber();
+    document.getElementById("statusSelect").value = "draft";
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById("issueDate").value = today;
+    document.getElementById("dueDate").value = today;
+    document.getElementById("vatRate").value = 0;
+    document.getElementById("notes").value = "Payment due on receipt.";
+    lineItemsCtrl.reset();
+  }
+  refreshTotals();
+  document.getElementById("invoiceModal").classList.remove("hidden");
+}
+function closeModal() { document.getElementById("invoiceModal").classList.add("hidden"); }
+
+document.getElementById("addInvoiceBtn").addEventListener("click", () => openModal(null));
+document.getElementById("cancelBtn").addEventListener("click", closeModal);
+
+document.getElementById("deleteInvoiceBtn").addEventListener("click", async () => {
+  if (!editingInvoiceId) return;
+  if (!confirm("Delete this invoice? This can't be undone.")) return;
+  const { error } = await supabaseClient.from("invoices").delete().eq("id", editingInvoiceId);
+  if (error) { alert("Couldn't delete: " + error.message); return; }
+  closeModal();
+  await loadInvoices();
+});
+
+function collectFormData() {
+  const clientId = document.getElementById("clientSelect").value;
+  const client = allClients.find(c => c.id === clientId);
+  const lineItems = lineItemsCtrl.getData().filter(i => i.description || i.qty || i.unit_price);
+  const record = {
+    client_id: clientId || null,
+    invoice_number: document.getElementById("invoiceNumber").value.trim() || null,
+    status: document.getElementById("statusSelect").value,
+    issue_date: document.getElementById("issueDate").value || null,
+    due_date: document.getElementById("dueDate").value || null,
+    line_items: lineItems,
+    vat_rate: Number(document.getElementById("vatRate").value) || 0,
+    notes: document.getElementById("notes").value.trim() || null,
+  };
+  return { clientId, client, record };
+}
+
+async function saveInvoiceFromForm() {
+  const { clientId, client, record } = collectFormData();
+  if (editingInvoiceId) {
+    const { error } = await supabaseClient.from("invoices").update(record).eq("id", editingInvoiceId);
+    if (error) throw error;
+    return { invoiceId: editingInvoiceId, clientId, client, record };
+  }
+  const { data: inv, error } = await supabaseClient
+    .from("invoices")
+    .insert({ ...record, business_id: businessId })
+    .select().single();
+  if (error) throw error;
+  editingInvoiceId = inv.id; // subsequent saves in this same modal session (e.g. Save then Email) update, not duplicate
+  return { invoiceId: inv.id, clientId, client, record };
+}
+
+document.getElementById("invoiceForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("formStatus");
+  const saveBtn = document.getElementById("saveBtn");
+  saveBtn.disabled = true; saveBtn.textContent = "Saving...";
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  try {
+    await saveInvoiceFromForm();
+    closeModal();
+    await loadInvoices();
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't save: " + err.message;
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = editingInvoiceId ? "Save changes" : "Save invoice";
+  }
+});
+
+/* ============================== PDF generation (client-side, jsPDF) ============================== */
+const PDF_TEAL = [30, 78, 84];
+const PDF_ORANGE = [226, 145, 92];
+const PDF_MINT = [234, 243, 241];
+const PDF_INK = [22, 38, 42];
+const PDF_INK_SOFT = [92, 114, 120];
+
+function pdfInvoiceFilename(record, client) {
+  const safe = (client && client.name ? client.name : "client").replace(/[^a-z0-9]+/gi, "_");
+  const num = (record.invoice_number || "invoice").replace(/[^a-z0-9]+/gi, "_");
+  return `${num}_${safe}.pdf`;
+}
+
+function generateInvoicePdf(record, client) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const margin = 16;
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const contentWidth = pageWidth - margin * 2;
+  const HEADER_H = 26;
+  const FOOTER_H = 14;
+  let y = HEADER_H + 12;
+
+  doc.setFillColor(...PDF_TEAL);
+  doc.rect(0, 0, pageWidth, HEADER_H, "F");
+  doc.setFillColor(...PDF_ORANGE);
+  doc.rect(0, HEADER_H, pageWidth, 1.2, "F");
+  doc.setFont(undefined, "bold").setFontSize(15).setTextColor(255, 255, 255);
+  doc.text("Custom Electrics", margin, 12);
+  doc.setFont(undefined, "normal").setFontSize(8).setTextColor(234, 243, 241);
+  doc.text("Certified Domestic & Commercial Electrical Contractor", margin, 18);
+  doc.setFont(undefined, "bold").setFontSize(15).setTextColor(255, 255, 255);
+  doc.text("INVOICE", pageWidth - margin, 12, { align: "right" });
+  doc.setFont(undefined, "normal").setFontSize(8).setTextColor(234, 243, 241);
+  doc.text(record.invoice_number || "", pageWidth - margin, 18, { align: "right" });
+
+  const colW = contentWidth / 2 - 3;
+  doc.setFont(undefined, "bold").setFontSize(7.5).setTextColor(...PDF_INK_SOFT);
+  doc.text("BILL TO", margin, y);
+  doc.text("INVOICE DETAILS", margin + colW + 6, y);
+  y += 5;
+  doc.setFont(undefined, "normal").setFontSize(9.5).setTextColor(...PDF_INK);
+  const billLines = doc.splitTextToSize(`${client ? client.name : "--"}\n${client && client.address ? client.address : ""}`, colW);
+  doc.text(billLines, margin, y);
+
+  const detailLines = [
+    `Issue date: ${record.issue_date ? new Date(record.issue_date).toLocaleDateString("en-GB") : "--"}`,
+    `Due date: ${record.due_date ? new Date(record.due_date).toLocaleDateString("en-GB") : "--"}`,
+  ];
+  doc.text(detailLines, margin + colW + 6, y);
+  y += Math.max(billLines.length, detailLines.length) * 4.6 + 10;
+
+  const items = record.line_items || [];
+  const rows = items.map(i => [
+    i.description || "--",
+    String(i.qty ?? 0),
+    money(i.unit_price ?? 0),
+    money((Number(i.qty) || 0) * (Number(i.unit_price) || 0)),
+  ]);
+  doc.autoTable({
+    startY: y, margin: { left: margin, right: margin }, tableWidth: contentWidth,
+    head: [["Description", "Qty", "Unit price", "Total"]],
+    body: rows,
+    theme: "grid",
+    columnStyles: { 1: { halign: "right", cellWidth: 20 }, 2: { halign: "right", cellWidth: 32 }, 3: { halign: "right", cellWidth: 32 } },
+    headStyles: { fillColor: PDF_TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9 },
+    bodyStyles: { fontSize: 9, textColor: PDF_INK, cellPadding: 2.4 },
+    alternateRowStyles: { fillColor: [250, 250, 249] },
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  const { subtotal, vat, total } = computeTotals(items, record.vat_rate);
+  const totalsX = pageWidth - margin - 55;
+  function totalsRow(label, value, bold) {
+    doc.setFont(undefined, bold ? "bold" : "normal").setFontSize(bold ? 10.5 : 9.5).setTextColor(bold ? PDF_TEAL[0] : PDF_INK[0], bold ? PDF_TEAL[1] : PDF_INK[1], bold ? PDF_TEAL[2] : PDF_INK[2]);
+    doc.text(label, totalsX, y);
+    doc.text(value, pageWidth - margin, y, { align: "right" });
+    y += bold ? 7 : 5.5;
+  }
+  totalsRow("Subtotal", money(subtotal), false);
+  totalsRow(`VAT (${Number(record.vat_rate) || 0}%)`, money(vat), false);
+  doc.setDrawColor(220, 234, 231);
+  doc.line(totalsX, y - 3, pageWidth - margin, y - 3);
+  totalsRow("Total due", money(total), true);
+  y += 6;
+
+  if (businessBankDetails) {
+    doc.setFont(undefined, "bold").setFontSize(7.5).setTextColor(...PDF_INK_SOFT);
+    doc.text("PAYMENT DETAILS", margin, y);
+    y += 4.2;
+    doc.setFont(undefined, "normal").setFontSize(9).setTextColor(...PDF_INK);
+    const bankLines = doc.splitTextToSize(businessBankDetails, contentWidth);
+    doc.text(bankLines, margin, y);
+    y += bankLines.length * 4.6 + 8;
+  }
+
+  if (record.notes) {
+    doc.setFont(undefined, "italic").setFontSize(8.5).setTextColor(...PDF_INK_SOFT);
+    const lines = doc.splitTextToSize(record.notes, contentWidth - 6);
+    doc.setFillColor(250, 250, 249);
+    doc.setDrawColor(220, 234, 231);
+    doc.roundedRect(margin, y - 4, contentWidth, lines.length * 4.2 + 6, 1.5, 1.5, "FD");
+    doc.text(lines, margin + 3, y);
+    y += lines.length * 4.2 + 8;
+  }
+
+  const total_pages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= total_pages; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(220, 234, 231);
+    doc.line(margin, pageHeight - FOOTER_H, pageWidth - margin, pageHeight - FOOTER_H);
+    doc.setFont(undefined, "normal").setFontSize(7.5).setTextColor(...PDF_INK_SOFT);
+    doc.text("Custom Electrics Ltd", margin, pageHeight - FOOTER_H + 6);
+    doc.text(new Date().toLocaleDateString("en-GB"), pageWidth / 2, pageHeight - FOOTER_H + 6, { align: "center" });
+    doc.text(`Page ${i} of ${total_pages}`, pageWidth - margin, pageHeight - FOOTER_H + 6, { align: "right" });
+  }
+  return doc;
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+document.getElementById("downloadPdfBtn").addEventListener("click", () => {
+  try {
+    const { client, record } = collectFormData();
+    const doc = generateInvoicePdf(record, client);
+    doc.save(pdfInvoiceFilename(record, client));
+  } catch (err) {
+    document.getElementById("formStatus").style.color = "var(--danger)";
+    document.getElementById("formStatus").textContent = "Couldn't generate PDF: " + err.message;
+  }
+});
+
+/* ============================== Email ============================== */
+let pendingEmailInvoice = null; // { invoiceId, clientId, record }
+
+function openInvoiceEmailModal(invoiceId, clientId, record) {
+  const client = allClients.find(c => c.id === clientId);
+  if (!client || !client.email) {
+    throw new Error("This client has no email address on file -- add one on the Clients tab first.");
+  }
+  pendingEmailInvoice = { invoiceId, clientId, record };
+
+  document.getElementById("invoiceEmailStatus").textContent = "";
+  document.getElementById("invoiceEmailTo").textContent = `${client.name} <${client.email}>`;
+  document.getElementById("invoiceEmailSubject").value = `Invoice ${record.invoice_number || ""} from Custom Electrics Ltd`;
+  document.getElementById("invoiceEmailBody").value =
+    `Hi ${client.name},\n\nPlease find attached invoice ${record.invoice_number || ""}` +
+    `${record.due_date ? ", due " + new Date(record.due_date).toLocaleDateString("en-GB") : ""}.\n\n` +
+    `Let us know if you have any questions.\n\nCustom Electrics Ltd`;
+  document.getElementById("invoiceEmailModal").classList.remove("hidden");
+}
+function closeInvoiceEmailModal() { document.getElementById("invoiceEmailModal").classList.add("hidden"); }
+document.getElementById("invoiceEmailCancelBtn").addEventListener("click", closeInvoiceEmailModal);
+
+document.getElementById("invoiceEmailSendBtn").addEventListener("click", async () => {
+  const status = document.getElementById("invoiceEmailStatus");
+  const sendBtn = document.getElementById("invoiceEmailSendBtn");
+  sendBtn.disabled = true; sendBtn.textContent = "Sending...";
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  try {
+    const { invoiceId, clientId, record } = pendingEmailInvoice;
+    const client = allClients.find(c => c.id === clientId);
+    const subject = document.getElementById("invoiceEmailSubject").value.trim();
+    const body = document.getElementById("invoiceEmailBody").value;
+
+    const pdfDoc = generateInvoicePdf(record, client);
+    const pdfBase64 = arrayBufferToBase64(pdfDoc.output("arraybuffer"));
+    const filename = pdfInvoiceFilename(record, client);
+
+    const { data, error } = await supabaseClient.functions.invoke("send-email", {
+      body: { to: client.email, subject, text: body, attachments: [{ filename, content: pdfBase64 }] },
+    });
+    if (error) {
+      let detail = error.message;
+      try {
+        if (error.context && typeof error.context.json === "function") {
+          const errBody = await error.context.json();
+          if (errBody && errBody.error) detail = errBody.error;
+        }
+      } catch (_) { /* fall back to error.message */ }
+      throw new Error(detail);
+    }
+    if (data && data.error) throw new Error(data.error);
+
+    await supabaseClient.from("emails_log").insert({
+      business_id: businessId, client_id: clientId, to_address: client.email, subject,
+      body: body + `\n\n[Attached PDF: ${filename}]`,
+    });
+    const newStatus = record.status === "draft" ? "sent" : record.status;
+    await supabaseClient.from("invoices").update({
+      emailed_at: new Date().toISOString(), pdf_generated_at: new Date().toISOString(), status: newStatus,
+    }).eq("id", invoiceId);
+
+    closeInvoiceEmailModal();
+    closeModal();
+    await loadInvoices();
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't send: " + err.message;
+  } finally {
+    sendBtn.disabled = false; sendBtn.textContent = "Send";
+  }
+});
+
+document.getElementById("saveAndEmailBtn").addEventListener("click", async () => {
+  const status = document.getElementById("formStatus");
+  const emailBtn = document.getElementById("saveAndEmailBtn");
+  emailBtn.disabled = true; emailBtn.textContent = "Saving...";
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  try {
+    const { invoiceId, clientId, record } = await saveInvoiceFromForm();
+    openInvoiceEmailModal(invoiceId, clientId, record);
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't save: " + err.message;
+  } finally {
+    emailBtn.disabled = false; emailBtn.textContent = "📧 Save & email to client";
+  }
+});
+
+/* ============================== Init ============================== */
+(async function init() {
+  businessId = await getCurrentBusinessId();
+  if (!businessId) {
+    document.getElementById("invoiceList").innerHTML = `<div class="empty-note">Couldn't load your business account -- try signing in again.</div>`;
+    return;
+  }
+  const { data: business } = await supabaseClient.from("businesses").select("bank_details").eq("id", businessId).single();
+  businessBankDetails = business ? business.bank_details : null;
+  await loadClients();
+  await loadInvoices();
+})();
+</script>
+</body>
+</html>

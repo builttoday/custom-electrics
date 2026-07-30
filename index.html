@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in — CRM</title>
+<meta name="theme-color" content="#1E4E54">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='47' fill='%231E4E54' stroke='%23E2915C' stroke-width='6'/%3E%3Cpath d='M56 18 26 56h24l-4 26 30-38H52l4-26Z' fill='%23EAF3F1'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="brand-mark" style="justify-content:center;">
+      <span class="brand-badge">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill="#EAF3F1"/></svg>
+      </span>
+      <span class="brand-name">
+        <span class="brand-script">Custom</span>
+        <span class="brand-caption">Electrics</span>
+      </span>
+    </div>
+    <h1>Sign in to the CRM</h1>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary" id="loginBtn">Sign in</button>
+      <p class="login-status" id="loginStatus"></p>
+    </form>
+
+    <div class="login-toggle">
+      <button type="button" id="forgotBtn">Forgot your password?</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+(async function () {
+  if (!supabaseClient) {
+    document.getElementById("loginStatus").style.color = "var(--danger)";
+    document.getElementById("loginStatus").textContent = "CRM backend isn't connected yet -- ask for the Supabase setup step.";
+    document.getElementById("loginBtn").disabled = true;
+    return;
+  }
+  const { data } = await supabaseClient.auth.getSession();
+  if (data.session) window.location.href = "dashboard.html";
+})();
+
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("loginStatus");
+  const btn = document.getElementById("loginBtn");
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  btn.disabled = true; btn.textContent = "Signing in...";
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  try {
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    window.location.href = "dashboard.html";
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't sign in -- check your email and password.";
+    btn.disabled = false; btn.textContent = "Sign in";
+  }
+});
+
+document.getElementById("forgotBtn").addEventListener("click", async () => {
+  const status = document.getElementById("loginStatus");
+  const email = document.getElementById("email").value.trim();
+  if (!email) { status.style.color = "var(--danger)"; status.textContent = "Enter your email above first."; return; }
+  if (!supabaseClient) return;
+  try {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
+    if (error) throw error;
+    status.style.color = "var(--good)";
+    status.textContent = "Password reset email sent -- check your inbox.";
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't send reset email -- try again.";
+  }
+});
+</script>
+</body>
+</html>

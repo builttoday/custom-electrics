@@ -1,0 +1,167 @@
+/* ============================== Custom Electrics CRM — design tokens ==============================
+   Palette sampled from the real Custom Electrics Ltd logo (deep teal ring + terracotta accent on a
+   pale mint ground). This file is the one place trade-specific branding lives visually — a future
+   deployment for a different trade swaps this file (and the wordmark markup in the header) and
+   nothing else in the layout needs to change. */
+:root {
+  --teal: #1E4E54;
+  --teal-dark: #163940;
+  --orange: #E2915C;
+  --orange-soft: #FBE7D8;
+  --mint: #EAF3F1;
+  --bg: #F5FAF9;
+  --surface: #FFFFFF;
+  --ink: #16262A;
+  --ink-soft: #5C7278;
+  --line: #DCEAE7;
+  --danger: #C4553F;
+  --danger-soft: #FBE4DF;
+  --good: #2E8B67;
+  --good-soft: #E1F3EA;
+  --shadow: 0 4px 18px rgba(20, 40, 45, 0.07);
+  --shadow-lg: 0 12px 34px rgba(20, 40, 45, 0.12);
+  --radius: 14px;
+  --sidebar-w: 232px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --teal: #4A9199; --teal-dark: #0F2226; --orange: #F0A576; --orange-soft: #3A2A1E;
+    --mint: #16292A; --bg: #0E1A1B; --surface: #16292A; --ink: #EAF3F1; --ink-soft: #8FA8AC;
+    --line: #223B3D; --danger: #E37A63; --danger-soft: #3A211C; --good: #5FC79A; --good-soft: #17332A;
+    --shadow: 0 4px 18px rgba(0,0,0,0.35); --shadow-lg: 0 12px 34px rgba(0,0,0,0.45);
+  }
+}
+:root[data-theme="dark"] {
+  --teal: #4A9199; --teal-dark: #0F2226; --orange: #F0A576; --orange-soft: #3A2A1E;
+  --mint: #16292A; --bg: #0E1A1B; --surface: #16292A; --ink: #EAF3F1; --ink-soft: #8FA8AC;
+  --line: #223B3D; --danger: #E37A63; --danger-soft: #3A211C; --good: #5FC79A; --good-soft: #17332A;
+  --shadow: 0 4px 18px rgba(0,0,0,0.35); --shadow-lg: 0 12px 34px rgba(0,0,0,0.45);
+}
+:root[data-theme="light"] {
+  --teal: #1E4E54; --teal-dark: #163940; --orange: #E2915C; --orange-soft: #FBE7D8;
+  --mint: #EAF3F1; --bg: #F5FAF9; --surface: #FFFFFF; --ink: #16262A; --ink-soft: #5C7278;
+  --line: #DCEAE7; --danger: #C4553F; --danger-soft: #FBE4DF; --good: #2E8B67; --good-soft: #E1F3EA;
+  --shadow: 0 4px 18px rgba(20,40,45,0.07); --shadow-lg: 0 12px 34px rgba(20,40,45,0.12);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: "Inter", -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, .heading { font-family: "Poppins", -apple-system, sans-serif; font-weight: 700; letter-spacing: -0.01em; }
+a { color: inherit; }
+button { font: inherit; }
+
+/* ---------- Brand wordmark (used in header + login) ---------- */
+.brand-mark { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+.brand-badge {
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+  background: var(--teal); border: 3px solid var(--orange);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow);
+}
+.brand-badge svg { width: 18px; height: 18px; }
+.brand-mark .brand-name { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-mark .brand-script {
+  font-family: "Dancing Script", cursive; font-weight: 700; font-size: 1.3rem; color: var(--teal); margin: 0;
+}
+.brand-mark .brand-caption {
+  font-family: "Poppins", sans-serif; font-weight: 600; font-size: 0.62rem; letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--orange); margin-top: -2px;
+}
+
+/* ---------- App shell: persistent sidebar (desktop) / bottom tabs (mobile) ---------- */
+.app-shell { display: flex; min-height: 100vh; min-height: 100dvh; }
+.sidebar {
+  width: var(--sidebar-w); flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; padding: 22px 16px; gap: 4px; position: sticky; top: 0;
+  height: 100vh; height: 100dvh;
+}
+.sidebar .brand-mark { padding: 6px 8px 22px; }
+.nav-link {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px;
+  text-decoration: none; color: var(--ink-soft); font-weight: 600; font-size: 0.92rem;
+}
+.nav-link .nav-icon { font-size: 1.1rem; width: 22px; text-align: center; }
+.nav-link:hover { background: var(--mint); color: var(--ink); }
+.nav-link.active { background: var(--teal); color: #fff; }
+.sidebar .nav-spacer { flex: 1; }
+.nav-link.logout { color: var(--danger); }
+.nav-link.logout:hover { background: var(--danger-soft); }
+
+.main-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  display: none; align-items: center; justify-content: space-between; padding: 14px 18px;
+  background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5;
+}
+.page-content { flex: 1; padding: 30px 34px 100px; max-width: 1100px; width: 100%; margin: 0 auto; }
+
+.tab-bar {
+  display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface);
+  border-top: 1px solid var(--line); z-index: 10; padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+}
+.tab-bar .nav-link { flex-direction: column; gap: 3px; padding: 8px 4px; font-size: 0.66rem; text-align: center; flex: 1; border-radius: 10px; }
+.tab-bar .nav-link .nav-icon { font-size: 1.25rem; width: auto; }
+.tab-bar-row { display: flex; }
+
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .topbar { display: flex; }
+  .tab-bar { display: block; }
+  .page-content { padding: 22px 16px 90px; }
+}
+
+/* ---------- Page header ---------- */
+.page-header { margin-bottom: 26px; }
+.page-header h1 { font-size: 1.5rem; margin: 0 0 4px; }
+.page-header p { color: var(--ink-soft); margin: 0; font-size: 0.92rem; }
+
+/* ---------- Cards / generic UI ---------- */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 26px; }
+.stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+.stat-card .stat-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+.stat-card .stat-value { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 1.7rem; margin-top: 6px; color: var(--teal); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; cursor: pointer;
+  border-radius: 10px; padding: 12px 20px; font-weight: 700; font-size: 0.9rem; font-family: inherit;
+}
+.btn-primary { background: var(--teal); color: #fff; }
+.btn-primary:hover { background: var(--teal-dark); }
+.btn-accent { background: var(--orange); color: #291607; }
+.btn-ghost { background: transparent; border: 1.5px solid var(--line); color: var(--ink); }
+.btn-danger { background: var(--danger-soft); color: var(--danger); }
+.btn:disabled { opacity: 0.55; cursor: default; }
+
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field label { font-size: 0.8rem; font-weight: 700; color: var(--ink-soft); }
+.field input, .field select, .field textarea {
+  background: var(--bg); border: 1.5px solid var(--line); color: var(--ink); border-radius: 10px;
+  padding: 11px 13px; font-family: inherit; font-size: 16px; width: 100%;
+}
+.field textarea { min-height: 90px; resize: vertical; }
+
+.badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+.badge.good { background: var(--good-soft); color: var(--good); }
+.badge.pending { background: var(--orange-soft); color: var(--orange); }
+.badge.muted { background: var(--mint); color: var(--ink-soft); }
+
+.empty-note {
+  text-align: center; color: var(--ink-soft); font-size: 0.9rem; padding: 50px 20px; border: 1.5px dashed var(--line);
+  border-radius: var(--radius); background: var(--surface);
+}
+
+/* ---------- Login page ---------- */
+.login-wrap { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.login-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 36px 32px; box-shadow: var(--shadow-lg); text-align: center; }
+.login-card .brand-mark { justify-content: center; margin-bottom: 22px; }
+.login-card h1 { font-size: 1.15rem; margin: 0 0 22px; }
+.login-card .field { text-align: left; }
+.login-card .btn { width: 100%; margin-top: 6px; }
+.login-status { font-size: 0.82rem; min-height: 1.2em; margin: 12px 0 0; }
+.login-toggle { margin-top: 18px; font-size: 0.82rem; color: var(--ink-soft); }
+.login-toggle button { background: none; border: none; color: var(--teal); font-weight: 700; cursor: pointer; padding: 0; text-decoration: underline; }

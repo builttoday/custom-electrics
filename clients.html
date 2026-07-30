@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clients — CRM</title>
+<meta name="theme-color" content="#1E4E54">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='47' fill='%231E4E54' stroke='%23E2915C' stroke-width='6'/%3E%3Cpath d='M56 18 26 56h24l-4 26 30-38H52l4-26Z' fill='%23EAF3F1'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+.client-toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.client-toolbar input { flex: 1; min-width: 200px; }
+.page-content.wide { max-width: 1500px; }
+.client-list { display: flex; flex-direction: column; gap: 5px; }
+.letter-heading { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--teal); margin: 14px 2px 2px; }
+.letter-heading:first-child { margin-top: 2px; }
+.client-row { display: flex; align-items: center; gap: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 16px; box-shadow: var(--shadow); flex-wrap: wrap; overflow: hidden; }
+.client-row .name-col { font-weight: 700; width: 170px; flex-shrink: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-row .detail-col { display: flex; align-items: center; gap: 6px; font-size: 0.83rem; color: var(--ink-soft); min-width: 0; }
+.client-row .detail-col .icon { flex-shrink: 0; }
+.client-row .detail-col span:last-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.client-row .email-link { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; text-decoration: none; }
+.client-row .email-link:hover { text-decoration: underline; color: var(--teal); }
+.client-row .address-link { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; text-decoration: none; }
+.client-row .address-link:hover { text-decoration: underline; color: var(--teal); }
+.client-row .address-col { width: 320px; flex-shrink: 0; min-width: 0; }
+.client-row .contact-col { display: flex; flex-direction: column; gap: 2px; width: 220px; flex-shrink: 0; min-width: 0; }
+.client-row .contact-col .detail-col { min-width: 0; color: var(--ink); }
+.client-row .notes-col { flex-basis: 100%; font-size: 0.8rem; color: var(--ink-soft); padding-top: 6px; margin-top: 6px; border-top: 1px solid var(--line); white-space: pre-wrap; }
+.client-actions { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
+.client-actions .btn { padding: 7px 10px; font-size: 0.76rem; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(20,40,45,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.modal-card { background: var(--surface); border-radius: var(--radius); padding: 26px; width: 100%; max-width: 460px; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+.modal-card h2 { margin: 0 0 18px; font-size: 1.2rem; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+.hidden { display: none !important; }
+.form-status { font-size: 0.85rem; margin: 0 0 12px; min-height: 1.1em; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <nav class="sidebar" id="sidebarNav"></nav>
+
+  <div class="main-col">
+    <div class="topbar">
+      <div id="topbarBrand"></div>
+    </div>
+
+    <div class="page-content wide">
+      <div class="page-header">
+        <h1>Clients</h1>
+        <p>Every client, their contact details, and quick links into the diary and certificates.</p>
+      </div>
+
+      <div class="client-toolbar">
+        <input type="search" id="searchInput" placeholder="Search clients by name, address, or phone...">
+        <button class="btn btn-primary" id="addClientBtn">+ Add client</button>
+      </div>
+
+      <div id="clientList"><div class="empty-note">Loading clients...</div></div>
+    </div>
+  </div>
+</div>
+
+<nav class="tab-bar" id="tabBarNav"></nav>
+
+<div class="modal-backdrop hidden" id="clientModal">
+  <div class="modal-card">
+    <h2 id="modalTitle">Add client</h2>
+    <p class="form-status" id="formStatus"></p>
+    <form id="clientForm">
+      <input type="hidden" id="clientId">
+      <div class="field">
+        <label for="name">Full name *</label>
+        <input type="text" id="name" required>
+      </div>
+      <div class="field">
+        <label for="address">Address</label>
+        <textarea id="address" placeholder="Including postcode"></textarea>
+      </div>
+      <div class="field">
+        <label for="phone">Phone</label>
+        <input type="tel" id="phone">
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email">
+      </div>
+      <div class="field">
+        <label for="notes">Notes</label>
+        <textarea id="notes" placeholder="Access notes, preferred contact times, anything worth remembering..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save client</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="emailModal">
+  <div class="modal-card">
+    <h2>Send email</h2>
+    <p class="form-status" id="emailStatus"></p>
+    <form id="emailForm">
+      <input type="hidden" id="emailClientId">
+      <div class="field">
+        <label>To</label>
+        <div class="readonly-fill" id="emailTo" style="background:var(--mint);border:1.5px dashed var(--line);border-radius:10px;padding:11px 13px;font-size:0.88rem;color:var(--ink-soft);"></div>
+      </div>
+      <div class="field">
+        <label for="emailSubject">Subject *</label>
+        <input type="text" id="emailSubject" required>
+      </div>
+      <div class="field">
+        <label for="emailBody">Message *</label>
+        <textarea id="emailBody" required style="min-height:160px;"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="emailCancelBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="emailSendBtn">Send</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+initAppShell("clients");
+
+let allClients = [];
+let businessId = null;
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function mapsDirectionsUrl(address) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+}
+
+function firstNameOf(fullName) {
+  return (fullName || "").trim().split(/\s+/)[0] || "";
+}
+
+function sortByFirstName(clients) {
+  return [...clients].sort((a, b) => firstNameOf(a.name).localeCompare(firstNameOf(b.name), undefined, { sensitivity: "base" }));
+}
+
+function renderClients(clients) {
+  const target = document.getElementById("clientList");
+  if (!clients.length) {
+    target.innerHTML = `<div class="empty-note">No clients yet -- add your first one above.</div>`;
+    return;
+  }
+  const sorted = sortByFirstName(clients);
+  let html = `<div class="client-list">`;
+  let lastLetter = null;
+  for (const c of sorted) {
+    const letter = (firstNameOf(c.name)[0] || "#").toUpperCase();
+    if (letter !== lastLetter) {
+      html += `<div class="letter-heading">${escapeHtml(letter)}</div>`;
+      lastLetter = letter;
+    }
+    html += `
+    <div class="client-row">
+      <div class="name-col">${escapeHtml(c.name)}</div>
+      <div class="detail-col address-col"><span class="icon">📍</span>${c.address
+        ? `<a href="${mapsDirectionsUrl(c.address)}" target="_blank" rel="noopener" class="address-link" title="Get directions">${escapeHtml(c.address)}</a>`
+        : "<span>—</span>"}</div>
+      <div class="contact-col">
+        <div class="detail-col"><span class="icon">📞</span><span>${c.phone ? escapeHtml(c.phone) : "—"}</span></div>
+        <div class="detail-col"><span class="icon">✉️</span>${c.email ? `<a href="mailto:${escapeHtml(c.email)}" class="email-link">${escapeHtml(c.email)}</a>` : "<span>—</span>"}</div>
+      </div>
+      <div class="client-actions">
+        ${c.email ? `<button class="btn btn-accent" data-send-email="${c.id}" title="Send email">📧</button>` : ""}
+        <a class="btn btn-accent" href="diary.html?client=${c.id}" title="Book in diary">📅</a>
+        <a class="btn btn-accent" href="certificates.html?client=${c.id}" title="New certificate">📄</a>
+        <button class="btn btn-ghost" data-edit="${c.id}">Edit</button>
+        <button class="btn btn-danger" data-delete="${c.id}">Delete</button>
+      </div>
+      ${c.notes ? `<div class="notes-col">${escapeHtml(c.notes)}</div>` : ""}
+    </div>`;
+  }
+  html += `</div>`;
+  target.innerHTML = html;
+
+  target.querySelectorAll("[data-edit]").forEach(btn => btn.addEventListener("click", () => openModal(btn.dataset.edit)));
+  target.querySelectorAll("[data-delete]").forEach(btn => btn.addEventListener("click", () => deleteClient(btn.dataset.delete)));
+  target.querySelectorAll("[data-send-email]").forEach(btn => btn.addEventListener("click", () => openEmailModal(btn.dataset.sendEmail)));
+}
+
+async function loadClients() {
+  businessId = await getCurrentBusinessId();
+  if (!businessId) {
+    document.getElementById("clientList").innerHTML = `<div class="empty-note">Couldn't load your business account -- try signing in again.</div>`;
+    return;
+  }
+  const { data, error } = await supabaseClient.from("clients").select("*").eq("business_id", businessId).order("name");
+  if (error) {
+    document.getElementById("clientList").innerHTML = `<div class="empty-note">Couldn't load clients: ${escapeHtml(error.message)}</div>`;
+    return;
+  }
+  allClients = data;
+  renderClients(allClients);
+}
+
+document.getElementById("searchInput").addEventListener("input", (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) { renderClients(allClients); return; }
+  renderClients(allClients.filter(c =>
+    (c.name || "").toLowerCase().includes(q) ||
+    (c.address || "").toLowerCase().includes(q) ||
+    (c.phone || "").toLowerCase().includes(q)
+  ));
+});
+
+function openModal(clientId) {
+  const modal = document.getElementById("clientModal");
+  const form = document.getElementById("clientForm");
+  form.reset();
+  document.getElementById("formStatus").textContent = "";
+  document.getElementById("clientId").value = "";
+  document.getElementById("modalTitle").textContent = "Add client";
+  if (clientId) {
+    const c = allClients.find(x => x.id === clientId);
+    if (c) {
+      document.getElementById("modalTitle").textContent = "Edit client";
+      document.getElementById("clientId").value = c.id;
+      document.getElementById("name").value = c.name || "";
+      document.getElementById("address").value = c.address || "";
+      document.getElementById("phone").value = c.phone || "";
+      document.getElementById("email").value = c.email || "";
+      document.getElementById("notes").value = c.notes || "";
+    }
+  }
+  modal.classList.remove("hidden");
+}
+
+function closeModal() { document.getElementById("clientModal").classList.add("hidden"); }
+
+document.getElementById("addClientBtn").addEventListener("click", () => openModal(null));
+document.getElementById("cancelBtn").addEventListener("click", closeModal);
+
+document.getElementById("clientForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("formStatus");
+  const saveBtn = document.getElementById("saveBtn");
+  const id = document.getElementById("clientId").value;
+  const record = {
+    name: document.getElementById("name").value.trim(),
+    address: document.getElementById("address").value.trim() || null,
+    phone: document.getElementById("phone").value.trim() || null,
+    email: document.getElementById("email").value.trim() || null,
+    notes: document.getElementById("notes").value.trim() || null,
+  };
+  saveBtn.disabled = true; saveBtn.textContent = "Saving...";
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  try {
+    if (id) {
+      const { error } = await supabaseClient.from("clients").update(record).eq("id", id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabaseClient.from("clients").insert({ ...record, business_id: businessId });
+      if (error) throw error;
+    }
+    closeModal();
+    await loadClients();
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't save: " + err.message;
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = "Save client";
+  }
+});
+
+async function deleteClient(id) {
+  const client = allClients.find(c => c.id === id);
+  if (!confirm(`Delete ${client ? client.name : "this client"}? This can't be undone.`)) return;
+  const { error } = await supabaseClient.from("clients").delete().eq("id", id);
+  if (error) { alert("Couldn't delete: " + error.message); return; }
+  await loadClients();
+}
+
+function openEmailModal(clientId) {
+  const client = allClients.find(c => c.id === clientId);
+  if (!client) return;
+  document.getElementById("emailForm").reset();
+  document.getElementById("emailStatus").textContent = "";
+  document.getElementById("emailClientId").value = clientId;
+  document.getElementById("emailTo").textContent = `${client.name} <${client.email}>`;
+  document.getElementById("emailModal").classList.remove("hidden");
+}
+function closeEmailModal() { document.getElementById("emailModal").classList.add("hidden"); }
+
+document.getElementById("emailCancelBtn").addEventListener("click", closeEmailModal);
+
+document.getElementById("emailForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("emailStatus");
+  const sendBtn = document.getElementById("emailSendBtn");
+  const clientId = document.getElementById("emailClientId").value;
+  const client = allClients.find(c => c.id === clientId);
+  const subject = document.getElementById("emailSubject").value.trim();
+  const body = document.getElementById("emailBody").value.trim();
+
+  sendBtn.disabled = true; sendBtn.textContent = "Sending...";
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  try {
+    const { data, error } = await supabaseClient.functions.invoke("send-email", {
+      body: { to: client.email, subject, text: body },
+    });
+    if (error) {
+      // supabase-js's default error message just says "non-2xx status code" --
+      // the actual reason is in the response body it attaches as .context.
+      let detail = error.message;
+      try {
+        if (error.context && typeof error.context.json === "function") {
+          const body = await error.context.json();
+          if (body && body.error) detail = body.error;
+        }
+      } catch (_) { /* body wasn't JSON or already consumed -- fall back to error.message */ }
+      throw new Error(detail);
+    }
+    if (data && data.error) throw new Error(data.error);
+
+    await supabaseClient.from("emails_log").insert({
+      business_id: businessId, client_id: clientId,
+      to_address: client.email, subject, body,
+    });
+
+    closeEmailModal();
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't send: " + err.message;
+  } finally {
+    sendBtn.disabled = false; sendBtn.textContent = "Send";
+  }
+});
+
+loadClients();
+</script>
+</body>
+</html>

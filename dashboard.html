@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — CRM</title>
+<meta name="theme-color" content="#1E4E54">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='47' fill='%231E4E54' stroke='%23E2915C' stroke-width='6'/%3E%3Cpath d='M56 18 26 56h24l-4 26 30-38H52l4-26Z' fill='%23EAF3F1'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <nav class="sidebar" id="sidebarNav"></nav>
+
+  <div class="main-col">
+    <div class="topbar">
+      <div id="topbarBrand"></div>
+    </div>
+
+    <div class="page-content">
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <p>A quick look at where the business stands right now.</p>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Active jobs</div><div class="stat-value">--</div></div>
+        <div class="stat-card"><div class="stat-label">This week's diary</div><div class="stat-value">--</div></div>
+        <div class="stat-card"><div class="stat-label">Total clients</div><div class="stat-value">--</div></div>
+        <div class="stat-card"><div class="stat-label">Certificates issued</div><div class="stat-value">--</div></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Getting set up</h3>
+        <p style="color:var(--ink-soft);">This is the dashboard shell -- clients, the diary, and
+          certificates are being built next. Once the backend is connected, this page will show real
+          numbers pulled straight from your account.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="tab-bar" id="tabBarNav"></nav>
+
+<script src="shared.js"></script>
+<script>initAppShell("dashboard");</script>
+</body>
+</html>

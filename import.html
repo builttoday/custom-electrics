@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Import clients — CRM</title>
+<meta name="theme-color" content="#1E4E54">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='47' fill='%231E4E54' stroke='%23E2915C' stroke-width='6'/%3E%3Cpath d='M56 18 26 56h24l-4 26 30-38H52l4-26Z' fill='%23EAF3F1'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+.import-log { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; font-size: 0.85rem; white-space: pre-wrap; max-height: 340px; overflow-y: auto; margin-top: 18px; font-family: ui-monospace, monospace; }
+.field-note { font-size: 0.8rem; color: var(--ink-soft); margin: -8px 0 14px; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <nav class="sidebar" id="sidebarNav"></nav>
+
+  <div class="main-col">
+    <div class="topbar">
+      <div id="topbarBrand"></div>
+    </div>
+
+    <div class="page-content">
+      <div class="page-header">
+        <h1>Import clients from Tradify</h1>
+        <p>One-time (or repeatable) import from Tradify's CSV exports. Safe to re-run -- matches
+           existing clients by their Tradify Id instead of creating duplicates.</p>
+      </div>
+
+      <div class="card">
+        <div class="field">
+          <label for="customerFile">Customer export (Tradify: Customers list &rarr; Export)</label>
+          <input type="file" id="customerFile" accept=".csv">
+        </div>
+        <div class="field">
+          <label for="siteFile">Customer sites export (optional -- fills in an address when the customer record itself doesn't have one)</label>
+          <input type="file" id="siteFile" accept=".csv">
+        </div>
+        <p class="field-note">Archived customers are skipped by default.</p>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--ink-soft);margin-bottom:16px;">
+          <input type="checkbox" id="includeArchived" style="width:auto;"> Include archived customers too
+        </label>
+        <button class="btn btn-primary" id="importBtn">Import</button>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3 style="margin-top:0;">Clean up</h3>
+        <p style="color:var(--ink-soft);">Earlier imports added a "Contact: ..." line to some clients' notes --
+           removes that from every client's notes (one-time, safe to run again; does nothing if there's nothing left to clean).</p>
+        <button class="btn btn-ghost" id="cleanupBtn">Remove "Contact:" notes from all clients</button>
+      </div>
+
+      <div class="import-log hidden" id="importLog"></div>
+    </div>
+  </div>
+</div>
+
+<nav class="tab-bar" id="tabBarNav"></nav>
+
+<script src="shared.js"></script>
+<script>
+initAppShell(null);
+
+function readFileText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+// Minimal RFC4128-style CSV parser: handles quoted fields, embedded commas, and "" as an escaped quote.
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); field = "";
+      if (row.length > 1 || row[0] !== "") rows.push(row);
+      row = [];
+    } else field += c;
+  }
+  if (field !== "" || row.length) { row.push(field); rows.push(row); }
+
+  const header = rows[0];
+  return rows.slice(1).map(r => {
+    const obj = {};
+    header.forEach((h, i) => { obj[h] = (r[i] || "").trim(); });
+    return obj;
+  });
+}
+
+function buildAddress(street, city, region, postcode, country) {
+  return [street, city, region, postcode, country].filter(Boolean).join(", ");
+}
+
+function log(msg) {
+  const el = document.getElementById("importLog");
+  el.classList.remove("hidden");
+  el.textContent += msg + "\n";
+  el.scrollTop = el.scrollHeight;
+}
+
+document.getElementById("importBtn").addEventListener("click", async () => {
+  const importBtn = document.getElementById("importBtn");
+  const customerFile = document.getElementById("customerFile").files[0];
+  const siteFile = document.getElementById("siteFile").files[0];
+  const includeArchived = document.getElementById("includeArchived").checked;
+  document.getElementById("importLog").textContent = "";
+  document.getElementById("importLog").classList.remove("hidden");
+
+  if (!customerFile) { log("Pick a customer export CSV first."); return; }
+
+  importBtn.disabled = true; importBtn.textContent = "Importing...";
+  try {
+    const businessId = await getCurrentBusinessId();
+    if (!businessId) { log("Couldn't resolve your business account -- try signing in again."); return; }
+
+    const customers = parseCsv(await readFileText(customerFile));
+    log(`Read ${customers.length} customer rows.`);
+
+    let siteAddressByCustomer = {};
+    if (siteFile) {
+      const sites = parseCsv(await readFileText(siteFile));
+      for (const s of sites) {
+        if (siteAddressByCustomer[s["Customer"]]) continue; // first site wins if there are several
+        const addr = buildAddress(s["Address Street"], s["Address City"], s["Address Region"], s["Address Postal Code"], s["Address Country"]);
+        if (addr) siteAddressByCustomer[s["Customer"]] = addr;
+      }
+      log(`Read ${sites.length} site rows (${Object.keys(siteAddressByCustomer).length} with a usable address).`);
+    }
+
+    const records = [];
+    let skippedArchived = 0, skippedNoName = 0, filledFromSite = 0;
+    for (const c of customers) {
+      const name = c["Customer Name"];
+      if (!name) { skippedNoName++; continue; }
+      if (!includeArchived && c["Archived"] === "Yes") { skippedArchived++; continue; }
+
+      let address = buildAddress(c["Physical Address Street"], c["Physical Address City"], c["Physical Address Region"], c["Physical Address Postal Code"], c["Physical Address Country"])
+        || buildAddress(c["Postal Address Street"], c["Postal Address City"], c["Postal Address Region"], c["Postal Address Postal Code"], c["Postal Address Country"]);
+      if (!address && siteAddressByCustomer[name]) { address = siteAddressByCustomer[name]; filledFromSite++; }
+
+      const notesParts = [];
+      if (c["Lead Source"]) notesParts.push(`Lead source: ${c["Lead Source"]}`);
+
+      records.push({
+        business_id: businessId,
+        name,
+        address: address || null,
+        phone: c["Phone Number"] || c["Mobile Number"] || null,
+        email: c["Email Address"] || null,
+        notes: notesParts.join(" · ") || null,
+        tradify_id: c["Tradify Id"] || null,
+      });
+    }
+
+    log(`Prepared ${records.length} clients to import (skipped ${skippedArchived} archived, ${skippedNoName} with no name; ${filledFromSite} addresses filled in from a site).`);
+    if (!records.length) { log("Nothing to import."); return; }
+
+    const withTradifyId = records.filter(r => r.tradify_id);
+    const withoutTradifyId = records.filter(r => !r.tradify_id);
+
+    if (withTradifyId.length) {
+      const { error } = await supabaseClient.from("clients").upsert(withTradifyId, { onConflict: "tradify_id" });
+      if (error) throw error;
+      log(`Upserted ${withTradifyId.length} clients by Tradify Id (safe to re-run).`);
+    }
+    if (withoutTradifyId.length) {
+      const { error } = await supabaseClient.from("clients").insert(withoutTradifyId);
+      if (error) throw error;
+      log(`Inserted ${withoutTradifyId.length} clients with no Tradify Id (re-running the import will duplicate these -- they had no id to match on).`);
+    }
+
+    log("\nDone. Check the Clients tab.");
+  } catch (err) {
+    log("Error: " + err.message);
+    if (err.message && err.message.includes("tradify_id")) {
+      log("\nLooks like the tradify_id column doesn't exist yet -- run custom-electrics-add-tradify-id.sql in the Supabase SQL editor first.");
+    }
+  } finally {
+    importBtn.disabled = false; importBtn.textContent = "Import";
+  }
+});
+
+document.getElementById("cleanupBtn").addEventListener("click", async () => {
+  const cleanupBtn = document.getElementById("cleanupBtn");
+  document.getElementById("importLog").classList.remove("hidden");
+  cleanupBtn.disabled = true; cleanupBtn.textContent = "Cleaning up...";
+  try {
+    const businessId = await getCurrentBusinessId();
+    if (!businessId) { log("Couldn't resolve your business account -- try signing in again."); return; }
+
+    const { data: clients, error } = await supabaseClient.from("clients").select("id, notes").eq("business_id", businessId);
+    if (error) throw error;
+
+    let updated = 0;
+    for (const c of clients) {
+      if (!c.notes || !c.notes.includes("Contact:")) continue;
+      const cleaned = c.notes.split(" · ").filter(part => !part.trim().startsWith("Contact:")).join(" · ");
+      const newNotes = cleaned || null;
+      if (newNotes === c.notes) continue;
+      const { error: updateError } = await supabaseClient.from("clients").update({ notes: newNotes }).eq("id", c.id);
+      if (updateError) throw updateError;
+      updated++;
+    }
+    log(`Cleaned up ${updated} client${updated === 1 ? "" : "s"} with a "Contact:" note (checked ${clients.length} total).`);
+  } catch (err) {
+    log("Error: " + err.message);
+  } finally {
+    cleanupBtn.disabled = false; cleanupBtn.textContent = 'Remove "Contact:" notes from all clients';
+  }
+});
+</script>
+</body>
+</html>

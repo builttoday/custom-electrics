@@ -1231,6 +1231,13 @@ details.inspection-section[open] > summary.inspection-section-head::before { tra
         </details>
       </div>
 
+      <div class="field">
+        <label>Photos</label>
+        <div id="certAttachments" class="attachments-box"></div>
+        <input type="file" id="certAttachmentInput" accept="image/*" capture="environment" multiple class="hidden">
+        <button type="button" class="btn btn-ghost" id="certAddPhotoBtn">📷 Add photo</button>
+      </div>
+
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
         <button type="button" class="btn btn-ghost" id="downloadPdfBtn">⬇ Download PDF</button>
@@ -1289,6 +1296,10 @@ let allClients = [];
 let allCerts = [];
 let editingCertId = null;
 let currentDetailCert = null;
+
+const certAttachments = createAttachmentsManager("certAttachments", "certificate_id");
+document.getElementById("certAddPhotoBtn").addEventListener("click", () => document.getElementById("certAttachmentInput").click());
+document.getElementById("certAttachmentInput").addEventListener("change", (e) => certAttachments.handleFileInput(e.target));
 
 const FORM_LABELS = {
   minor_works: "Minor Electrical Installation Works Certificate",
@@ -2260,6 +2271,7 @@ function openModal() {
     document.getElementById("clientSelect").value = preselect;
     document.getElementById("clientSelect").dispatchEvent(new Event("change"));
   }
+  certAttachments.setParent(null);
   document.getElementById("certModal").classList.remove("hidden");
 }
 
@@ -2488,6 +2500,7 @@ function openEditModal(cert) {
     eicrLimitationsChecklist.reset();
   }
 
+  certAttachments.setParent(cert.id);
   document.getElementById("certModal").classList.remove("hidden");
 }
 
@@ -2716,6 +2729,7 @@ async function saveCertificateFromForm() {
   if (certError) throw certError;
 
   editingCertId = cert.id; // subsequent saves in this same modal session (e.g. Save then Email) update, not duplicate
+  certAttachments.setParent(cert.id); // photos can now be attached without closing/reopening the modal
   return { certId: cert.id, clientId, client, formType, formData };
 }
 

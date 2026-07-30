@@ -142,6 +142,13 @@
         <textarea id="notes" placeholder="Payment terms, bank details, thank-you note..."></textarea>
       </div>
 
+      <div class="field">
+        <label>Photos</label>
+        <div id="invoiceAttachments" class="attachments-box"></div>
+        <input type="file" id="invoiceAttachmentInput" accept="image/*" capture="environment" multiple class="hidden">
+        <button type="button" class="btn btn-ghost" id="invoiceAddPhotoBtn">📷 Add photo</button>
+      </div>
+
       <div class="modal-actions">
         <button type="button" class="btn btn-danger hidden" id="deleteInvoiceBtn">Delete</button>
         <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
@@ -269,6 +276,10 @@ function refreshTotals() {
 const lineItemsCtrl = createLineItems("lineItemsList", "addLineItemBtn", refreshTotals);
 document.getElementById("vatRate").addEventListener("input", refreshTotals);
 
+const invoiceAttachments = createAttachmentsManager("invoiceAttachments", "invoice_id");
+document.getElementById("invoiceAddPhotoBtn").addEventListener("click", () => document.getElementById("invoiceAttachmentInput").click());
+document.getElementById("invoiceAttachmentInput").addEventListener("change", (e) => invoiceAttachments.handleFileInput(e.target));
+
 /* ============================== Loading ============================== */
 async function loadClients() {
   const { data } = await supabaseClient.from("clients").select("id, name, address, email").eq("business_id", businessId).order("name");
@@ -374,6 +385,7 @@ function openModal(invoiceId) {
     lineItemsCtrl.reset();
   }
   refreshTotals();
+  invoiceAttachments.setParent(invoiceId || null);
   document.getElementById("invoiceModal").classList.remove("hidden");
 }
 function closeModal() { document.getElementById("invoiceModal").classList.add("hidden"); }
@@ -420,6 +432,7 @@ async function saveInvoiceFromForm() {
     .select().single();
   if (error) throw error;
   editingInvoiceId = inv.id; // subsequent saves in this same modal session (e.g. Save then Email) update, not duplicate
+  invoiceAttachments.setParent(inv.id); // photos can now be attached without closing/reopening the modal
   return { invoiceId: inv.id, clientId, client, record };
 }
 

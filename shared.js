@@ -96,6 +96,95 @@ async function logout() {
   window.location.href = "index.html";
 }
 
+/* ============================== Attachments (photos on invoices/certificates) ==============================
+   One shared component for both -- an attachment is the same shape regardless of which record it
+   hangs off (see custom-electrics-add-attachments.sql: one `attachments` table, exactly one of
+   invoice_id/certificate_id set per row). Storage path convention:
+   {business_id}/{invoice|certificate}/{record_id}/{timestamp}-{filename} -- lets the Storage RLS
+   policies check business membership straight from the path's first segment, no extra lookup.
+   Bucket is PRIVATE, so thumbnails/links use short-lived signed URLs, not public ones -- same
+   membership-gated security posture as every table in this app, not security-by-obscure-URL. */
+function createAttachmentsManager(containerId, parentColumn) {
+  const container = document.getElementById(containerId);
+  let parentId = null;
+  let items = [];
+
+  function folderFor(id) {
+    const kind = parentColumn === "invoice_id" ? "invoice" : "certificate";
+    return `${_cachedBusinessId}/${kind}/${id}`;
+  }
+
+  async function refresh() {
+    if (!parentId) {
+      container.innerHTML = `<p class="field-help" style="margin:0;">Save this record first, then you can attach photos.</p>`;
+      return;
+    }
+    container.innerHTML = `<p class="field-help" style="margin:0;">Loading photos…</p>`;
+    const { data, error } = await supabaseClient
+      .from("attachments").select("*").eq(parentColumn, parentId).order("created_at");
+    if (error) {
+      container.innerHTML = `<p class="field-help" style="color:var(--danger);margin:0;">Couldn't load photos: ${error.message}</p>`;
+      return;
+    }
+    items = data || [];
+    if (!items.length) {
+      container.innerHTML = `<p class="field-help" style="margin:0;">No photos yet.</p>`;
+      return;
+    }
+    const thumbs = await Promise.all(items.map(async (a) => {
+      const { data: signed } = await supabaseClient.storage.from("attachments").createSignedUrl(a.storage_path, 3600);
+      const url = signed ? signed.signedUrl : "";
+      const alt = (a.file_name || "photo").replace(/"/g, "");
+      return `
+        <div class="attachment-thumb" data-attachment="${a.id}">
+          <a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${alt}" loading="lazy"></a>
+          <button type="button" class="attachment-remove" data-remove-attachment="${a.id}" title="Delete photo">✕</button>
+        </div>`;
+    }));
+    container.innerHTML = `<div class="attachment-grid">${thumbs.join("")}</div>`;
+    container.querySelectorAll("[data-remove-attachment]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.removeAttachment;
+        const att = items.find(a => a.id === id);
+        if (!att) return;
+        if (!confirm("Delete this photo? This can't be undone.")) return;
+        await supabaseClient.storage.from("attachments").remove([att.storage_path]);
+        await supabaseClient.from("attachments").delete().eq("id", id);
+        await refresh();
+      });
+    });
+  }
+
+  async function uploadFiles(fileList) {
+    if (!parentId) return;
+    for (const file of fileList) {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${folderFor(parentId)}/${Date.now()}-${safeName}`;
+      const { error: upErr } = await supabaseClient.storage.from("attachments")
+        .upload(path, file, { contentType: file.type });
+      if (upErr) { alert(`Couldn't upload ${file.name}: ${upErr.message}`); continue; }
+      const { data: userData } = await supabaseClient.auth.getUser();
+      const { error: insErr } = await supabaseClient.from("attachments").insert({
+        business_id: _cachedBusinessId, [parentColumn]: parentId,
+        storage_path: path, file_name: file.name, content_type: file.type, file_size: file.size,
+        uploaded_by: userData.user ? userData.user.id : null,
+      });
+      if (insErr) alert(`Uploaded ${file.name} but couldn't save its record: ${insErr.message}`);
+    }
+    await refresh();
+  }
+
+  return {
+    setParent(id) { parentId = id || null; refresh(); },
+    async handleFileInput(fileInputEl) {
+      if (!fileInputEl.files || !fileInputEl.files.length) return;
+      const files = Array.from(fileInputEl.files);
+      fileInputEl.disabled = true;
+      try { await uploadFiles(files); } finally { fileInputEl.disabled = false; fileInputEl.value = ""; }
+    },
+  };
+}
+
 /* ============================== Init (call on every authenticated page) ============================== */
 function initAppShell(activeId) {
   renderNav(activeId);

@@ -29,17 +29,15 @@
       </div>
 
       <div class="stat-grid">
-        <div class="stat-card"><div class="stat-label">Active jobs</div><div class="stat-value">--</div></div>
-        <div class="stat-card"><div class="stat-label">This week's diary</div><div class="stat-value">--</div></div>
-        <div class="stat-card"><div class="stat-label">Total clients</div><div class="stat-value">--</div></div>
-        <div class="stat-card"><div class="stat-label">Certificates issued</div><div class="stat-value">--</div></div>
+        <div class="stat-card"><div class="stat-label">Active jobs</div><div class="stat-value" id="statJobs">--</div></div>
+        <div class="stat-card"><div class="stat-label">This week's diary</div><div class="stat-value" id="statDiary">--</div></div>
+        <div class="stat-card"><div class="stat-label">Total clients</div><div class="stat-value" id="statClients">--</div></div>
+        <div class="stat-card"><div class="stat-label">Certificates issued</div><div class="stat-value" id="statCerts">--</div></div>
       </div>
 
-      <div class="card">
-        <h3 style="margin-top:0;">Getting set up</h3>
-        <p style="color:var(--ink-soft);">This is the dashboard shell -- clients, the diary, and
-          certificates are being built next. Once the backend is connected, this page will show real
-          numbers pulled straight from your account.</p>
+      <div class="card" id="upcomingCard">
+        <h3 style="margin-top:0;">This week's diary</h3>
+        <div id="upcomingList"><p style="color:var(--ink-soft);">Loading...</p></div>
       </div>
     </div>
   </div>
@@ -48,6 +46,73 @@
 <nav class="tab-bar" id="tabBarNav"></nav>
 
 <script src="shared.js"></script>
-<script>initAppShell("dashboard");</script>
+<script>
+initAppShell("dashboard");
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function fmtTime(d) {
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+function fmtDay(d) {
+  return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+}
+// Same Monday-start week convention as diary.html's startOfWeek(), duplicated here since
+// this is a plain multi-page app with no shared module system for page-specific helpers.
+function startOfWeek(d) {
+  const date = new Date(d);
+  const day = (date.getDay() + 6) % 7; // Monday = 0
+  date.setDate(date.getDate() - day);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+async function loadDashboard() {
+  const businessId = await getCurrentBusinessId();
+  if (!businessId) {
+    document.getElementById("upcomingList").innerHTML =
+      `<p style="color:var(--danger);">Couldn't load your business account -- try signing in again.</p>`;
+    return;
+  }
+
+  const weekStart = startOfWeek(new Date());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+
+  const [jobsRes, clientsRes, certsRes, diaryRes] = await Promise.all([
+    supabaseClient.from("jobs").select("id", { count: "exact", head: true }).eq("business_id", businessId),
+    supabaseClient.from("clients").select("id", { count: "exact", head: true }).eq("business_id", businessId),
+    supabaseClient.from("certificates").select("id", { count: "exact", head: true }).eq("business_id", businessId),
+    supabaseClient.from("diary_events").select("id, title, start_time, location")
+      .eq("business_id", businessId)
+      .gte("start_time", weekStart.toISOString())
+      .lt("start_time", weekEnd.toISOString())
+      .order("start_time"),
+  ]);
+
+  document.getElementById("statJobs").textContent = jobsRes.count ?? "--";
+  document.getElementById("statClients").textContent = clientsRes.count ?? "--";
+  document.getElementById("statCerts").textContent = certsRes.count ?? "--";
+
+  const events = diaryRes.data || [];
+  document.getElementById("statDiary").textContent = events.length;
+
+  const listTarget = document.getElementById("upcomingList");
+  if (diaryRes.error) {
+    listTarget.innerHTML = `<p style="color:var(--danger);">Couldn't load the diary: ${escapeHtml(diaryRes.error.message)}</p>`;
+  } else if (!events.length) {
+    listTarget.innerHTML = `<p style="color:var(--ink-soft);">Nothing booked this week.</p>`;
+  } else {
+    listTarget.innerHTML = events.map(ev => `
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);">
+        <span>${escapeHtml(ev.title)}${ev.location ? " — " + escapeHtml(ev.location) : ""}</span>
+        <span style="color:var(--ink-soft);white-space:nowrap;">${fmtDay(new Date(ev.start_time))}, ${fmtTime(new Date(ev.start_time))}</span>
+      </div>`).join("");
+  }
+}
+
+loadDashboard();
+</script>
 </body>
 </html>

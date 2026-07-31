@@ -16,6 +16,7 @@ const supabaseClient = (supabaseReady && window.supabase)
 const NAV_ITEMS = [
   { id: "dashboard", href: "dashboard.html", icon: "\u{1F3E0}", label: "Dashboard" },
   { id: "clients", href: "clients.html", icon: "\u{1F465}", label: "Clients" },
+  { id: "jobs", href: "jobs.html", icon: "\u{1F6E0}\u{FE0F}", label: "Jobs" },
   { id: "diary", href: "diary.html", icon: "\u{1F4C5}", label: "Diary" },
   { id: "certificates", href: "certificates.html", icon: "\u{1F4C4}", label: "Certificates" },
   { id: "invoices", href: "invoices.html", icon: "\u{1F9FE}", label: "Invoices" },

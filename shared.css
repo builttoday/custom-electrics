@@ -122,7 +122,12 @@ button { font: inherit; }
 /* ---------- Cards / generic UI ---------- */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 26px; }
-.stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px;
+  display: block; text-decoration: none; color: inherit; transition: border-color 0.15s ease, transform 0.15s ease;
+}
+a.stat-card:hover { border-color: var(--teal); transform: translateY(-1px); }
+a.stat-card:active { transform: translateY(0); }
 .stat-card .stat-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
 .stat-card .stat-value { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 1.7rem; margin-top: 6px; color: var(--teal); }
 

@@ -81,7 +81,8 @@ async function loadDashboard() {
   weekEnd.setDate(weekEnd.getDate() + 7);
 
   const [jobsRes, clientsRes, certsRes, diaryRes] = await Promise.all([
-    supabaseClient.from("jobs").select("id", { count: "exact", head: true }).eq("business_id", businessId),
+    supabaseClient.from("jobs").select("id", { count: "exact", head: true })
+      .eq("business_id", businessId).not("status", "in", "(completed,cancelled)"),
     supabaseClient.from("clients").select("id", { count: "exact", head: true }).eq("business_id", businessId),
     supabaseClient.from("certificates").select("id", { count: "exact", head: true }).eq("business_id", businessId),
     supabaseClient.from("diary_events").select("id, title, start_time, location")

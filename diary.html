@@ -755,6 +755,18 @@ document.getElementById("clockDoneBtn").addEventListener("click", () => {
   await loadClientsIntoSelect();
   await loadEvents();
   if (new URLSearchParams(window.location.search).get("client")) openModal(null);
+
+  // Deep-link support: ?event=<id> opens that specific diary entry directly in edit mode,
+  // e.g. from the dashboard's "This week's diary" list.
+  const eventId = new URLSearchParams(window.location.search).get("event");
+  if (eventId) {
+    const { data: ev, error } = await supabaseClient
+      .from("diary_events")
+      .select("*, jobs(title, client_id, clients(name))")
+      .eq("id", eventId)
+      .single();
+    if (!error && ev) openModal(null, null, ev);
+  }
 })();
 </script>
 </body>

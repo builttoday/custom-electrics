@@ -81,7 +81,11 @@
       </div>
       <div class="field">
         <label for="address">Address</label>
-        <textarea id="address" placeholder="Including postcode"></textarea>
+        <textarea id="address" placeholder="Street address"></textarea>
+      </div>
+      <div class="field">
+        <label for="postcode">Postcode</label>
+        <input type="text" id="postcode" style="text-transform:uppercase;" placeholder="e.g. AB12 3CD">
       </div>
       <div class="field">
         <label for="phone">Phone</label>
@@ -140,8 +144,16 @@ function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-function mapsDirectionsUrl(address) {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+function firstLineOf(text) {
+  return (text || "").split("\n").map(l => l.trim()).find(l => l) || "";
+}
+
+function mapsDirectionsUrl(address, postcode) {
+  // Satnav destination uses just the first line of the address (street) plus the postcode --
+  // not the whole multi-line address block, which can include flat/notes lines that confuse
+  // the query (see chat 2026-07-31).
+  const destination = [firstLineOf(address), postcode].filter(Boolean).join(" ");
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
 }
 
 function firstNameOf(fullName) {
@@ -171,7 +183,7 @@ function renderClients(clients) {
     <div class="client-row">
       <div class="name-col">${escapeHtml(c.name)}</div>
       <div class="detail-col address-col"><span class="icon">📍</span>${c.address
-        ? `<a href="${mapsDirectionsUrl(c.address)}" target="_blank" rel="noopener" class="address-link" title="Get directions">${escapeHtml(c.address)}</a>`
+        ? `<a href="${mapsDirectionsUrl(c.address, c.postcode)}" target="_blank" rel="noopener" class="address-link" title="Get directions">${escapeHtml(c.address)}${c.postcode ? " " + escapeHtml(c.postcode) : ""}</a>`
         : "<span>—</span>"}</div>
       <div class="contact-col">
         <div class="detail-col"><span class="icon">📞</span><span>${c.phone ? escapeHtml(c.phone) : "—"}</span></div>
@@ -234,6 +246,7 @@ function openModal(clientId) {
       document.getElementById("clientId").value = c.id;
       document.getElementById("name").value = c.name || "";
       document.getElementById("address").value = c.address || "";
+      document.getElementById("postcode").value = c.postcode || "";
       document.getElementById("phone").value = c.phone || "";
       document.getElementById("email").value = c.email || "";
       document.getElementById("notes").value = c.notes || "";
@@ -245,6 +258,11 @@ function openModal(clientId) {
 function closeModal() { document.getElementById("clientModal").classList.add("hidden"); }
 
 document.getElementById("addClientBtn").addEventListener("click", () => openModal(null));
+document.getElementById("postcode").addEventListener("input", (e) => {
+  const pos = e.target.selectionStart;
+  e.target.value = e.target.value.toUpperCase();
+  e.target.setSelectionRange(pos, pos);
+});
 document.getElementById("cancelBtn").addEventListener("click", closeModal);
 
 document.getElementById("clientForm").addEventListener("submit", async (e) => {
@@ -255,6 +273,7 @@ document.getElementById("clientForm").addEventListener("submit", async (e) => {
   const record = {
     name: document.getElementById("name").value.trim(),
     address: document.getElementById("address").value.trim() || null,
+    postcode: document.getElementById("postcode").value.trim().toUpperCase() || null,
     phone: document.getElementById("phone").value.trim() || null,
     email: document.getElementById("email").value.trim() || null,
     notes: document.getElementById("notes").value.trim() || null,

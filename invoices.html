@@ -14,7 +14,12 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
-.inv-toolbar { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+.inv-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.inv-search { flex: 1; min-width: 160px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 0.9rem; font-family: inherit; background: var(--surface); }
+@media (max-width: 560px) {
+  .inv-toolbar { flex-direction: column; align-items: stretch; }
+  .inv-toolbar .btn { width: 100%; }
+}
 .inv-list { display: flex; flex-direction: column; gap: 12px; }
 .inv-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: center; cursor: pointer; }
 .inv-card:hover { border-color: var(--teal); }
@@ -35,15 +40,33 @@
 .field-help { font-size: 0.76rem; color: var(--ink-soft); margin: -10px 0 14px; }
 .readonly-fill { background: var(--mint); border: 1.5px dashed var(--line); border-radius: 10px; padding: 11px 13px; font-size: 0.88rem; color: var(--ink-soft); min-height: 1.2em; }
 
-.line-items-head, .line-item-row { display: grid; grid-template-columns: 1fr 70px 100px 100px 34px; gap: 8px; align-items: center; }
-.line-items-head { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); padding: 0 2px 4px; }
-.line-item-row { margin-bottom: 8px; }
-.line-item-row input { width: 100%; }
-.line-item-total { font-size: 0.88rem; text-align: right; padding-right: 4px; }
-.btn-remove-line { padding: 4px 8px; font-size: 0.75rem; color: var(--danger); border: 1px solid var(--danger); background: none; border-radius: 8px; cursor: pointer; }
+/* Line items -- a self-contained card per row (description on its own line, then
+   qty/price/total below it) rather than a fixed-pixel-column grid, so it naturally
+   reflows on any screen width instead of squeezing the description box down to
+   nothing on a phone (see chat 2026-07-31 -- "on the mobile you cant see the
+   descriptions box"). */
+.line-item-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; background: var(--page); }
+.li-desc-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.li-desc-row input { flex: 1; min-width: 0; }
+.li-meta-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.li-field { flex: 1; min-width: 88px; }
+.li-field label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); display: block; margin-bottom: 3px; }
+.li-field input { width: 100%; }
+.li-field.li-total { text-align: right; flex: 0 0 auto; min-width: 70px; }
+.line-item-total { font-size: 0.92rem; font-weight: 700; padding-top: 6px; }
+.btn-remove-line { padding: 6px 10px; font-size: 0.8rem; color: var(--danger); border: 1px solid var(--danger); background: none; border-radius: 8px; cursor: pointer; flex-shrink: 0; }
 .totals-box { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .totals-row { display: flex; gap: 20px; font-size: 0.88rem; width: 220px; justify-content: space-between; }
 .totals-row.grand { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 1rem; color: var(--teal); border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+
+/* Mobile: stack side-by-side field pairs (invoice number/status, issue/due date,
+   etc.) instead of cramming two inputs into half-width columns (see chat
+   2026-07-31 -- "the whole invoice screen is messy... needs reformatted"). */
+@media (max-width: 560px) {
+  .field-row { flex-direction: column; gap: 0; }
+  .modal-card.wide { padding: 18px; }
+  .totals-row { width: 100%; }
+}
 </style>
 </head>
 <body>
@@ -63,6 +86,7 @@
       </div>
 
       <div class="inv-toolbar">
+        <input type="text" id="invoiceSearch" placeholder="🔍 Search by client or invoice number..." class="inv-search">
         <button class="btn btn-primary" id="addInvoiceBtn">+ New invoice</button>
       </div>
 
@@ -117,9 +141,6 @@
 
       <div class="field">
         <label>Line items</label>
-        <div class="line-items-head">
-          <span>Description</span><span>Qty</span><span>Unit price (£)</span><span>Total</span><span></span>
-        </div>
         <div id="lineItemsList"></div>
         <button type="button" class="btn btn-ghost" id="addLineItemBtn" style="margin-top:4px;">+ Add line item</button>
       </div>
@@ -211,11 +232,24 @@ function createLineItems(containerId, addBtnId, onChange) {
     const total = (Number(qty) || 0) * (Number(price) || 0);
     return `
     <div class="line-item-row" data-row="${idx}">
-      <input type="text" data-field="description" data-idx="${idx}" value="${escapeHtml(item.description || "")}" placeholder="e.g. Consumer unit replacement">
-      <input type="number" step="1" min="0" data-field="qty" data-idx="${idx}" value="${qty}">
-      <input type="number" step="0.01" min="0" data-field="unit_price" data-idx="${idx}" value="${price}">
-      <div class="line-item-total">${money(total)}</div>
-      <button type="button" class="btn-remove-line" data-remove="${idx}" title="Remove">✕</button>
+      <div class="li-desc-row">
+        <input type="text" data-field="description" data-idx="${idx}" value="${escapeHtml(item.description || "")}" placeholder="e.g. Consumer unit replacement">
+        <button type="button" class="btn-remove-line" data-remove="${idx}" title="Remove">✕</button>
+      </div>
+      <div class="li-meta-row">
+        <div class="li-field">
+          <label>Qty</label>
+          <input type="number" step="1" min="0" data-field="qty" data-idx="${idx}" value="${qty}">
+        </div>
+        <div class="li-field">
+          <label>Unit price (£)</label>
+          <input type="number" step="0.01" min="0" data-field="unit_price" data-idx="${idx}" value="${price}">
+        </div>
+        <div class="li-field li-total">
+          <label>Total</label>
+          <div class="line-item-total">${money(total)}</div>
+        </div>
+      </div>
     </div>`;
   }
 
@@ -311,7 +345,10 @@ function nextInvoiceNumber() {
 function renderInvoices(invoices) {
   const target = document.getElementById("invoiceList");
   if (!invoices.length) {
-    target.innerHTML = `<div class="empty-note">No invoices yet -- create your first one above.</div>`;
+    const searching = document.getElementById("invoiceSearch").value.trim();
+    target.innerHTML = searching
+      ? `<div class="empty-note">No invoices match "${escapeHtml(searching)}".</div>`
+      : `<div class="empty-note">No invoices yet -- create your first one above.</div>`;
     return;
   }
   target.innerHTML = `<div class="inv-list">${invoices.map(inv => {
@@ -345,8 +382,19 @@ async function loadInvoices() {
     return;
   }
   allInvoices = data || [];
-  renderInvoices(allInvoices);
+  applyInvoiceFilter();
 }
+
+function applyInvoiceFilter() {
+  const q = document.getElementById("invoiceSearch").value.trim().toLowerCase();
+  if (!q) { renderInvoices(allInvoices); return; }
+  const filtered = allInvoices.filter(inv => {
+    const client = inv.clients ? inv.clients.name || "" : "";
+    return client.toLowerCase().includes(q) || (inv.invoice_number || "").toLowerCase().includes(q);
+  });
+  renderInvoices(filtered);
+}
+document.getElementById("invoiceSearch").addEventListener("input", applyInvoiceFilter);
 
 /* ============================== Modal ============================== */
 function openModal(invoiceId) {

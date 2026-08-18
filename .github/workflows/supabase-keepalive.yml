@@ -1,0 +1,87 @@
+name: Supabase keep-alive
+
+# Free-tier Supabase projects auto-pause after ~7 days with no activity, which takes
+# the CRM offline until someone manually resumes it in the dashboard. This pings the
+# database every 3 days so the project never goes idle long enough to pause.
+#
+# The key below is the same publishable (anon) key already served publicly in
+# shared.js -- it is safe in a public repo and grants nothing beyond what the site
+# already exposes. Every table has RLS enabled with member-only policies, so this
+# query legitimately returns an empty list; the point is that PostgREST still runs
+# it against Postgres, which is what Supabase counts as activity.
+
+on:
+  schedule:
+    # 06:17 UTC every 3rd day. Off-the-hour to dodge GitHub's busy scheduler slots.
+    - cron: "17 6 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        env:
+          SUPABASE_URL: https://vbhrslysnnhjdhbyhqgm.supabase.co
+          SUPABASE_ANON_KEY: sb_publishable_RWXpmmijx0Gy-AT2h0LUlA_Rgfpl6QM
+        run: |
+          set -euo pipefail
+
+          # Retry a few times: a project waking from idle can be briefly slow, and a
+          # single blip should not raise a false alarm.
+          for attempt in 1 2 3; do
+            : > /tmp/body.txt  # curl leaves no file at all on a DNS failure
+            code=$(curl -s -o /tmp/body.txt -w '%{http_code}' --max-time 30 \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              "$SUPABASE_URL/rest/v1/clients?select=id&limit=1") || code="000"
+
+            echo "Attempt $attempt: HTTP $code"
+
+            if [ "$code" = "200" ]; then
+              echo "Database is awake."
+              exit 0
+            fi
+
+            echo "Response body:"
+            cat /tmp/body.txt
+            echo
+
+            if [ "$attempt" -lt 3 ]; then
+              sleep 30
+            fi
+          done
+
+          echo "::error::Supabase did not return HTTP 200 after 3 attempts (last: $code)."
+          echo "::error::The project may be paused. Resume it at https://supabase.com/dashboard/project/vbhrslysnnhjdhbyhqgm"
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Record heartbeat
+        # GitHub disables scheduled workflows after 60 days of repository inactivity.
+        # Committing this file counts as activity, so the schedule keeps itself alive
+        # even during long stretches where the site itself is not being edited.
+        run: |
+          set -euo pipefail
+          mkdir -p .github
+          date -u '+%Y-%m-%dT%H:%M:%SZ' > .github/last-keepalive.txt
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/last-keepalive.txt
+
+          if git diff --staged --quiet; then
+            echo "No change to commit."
+          else
+            git commit -m "chore: supabase keep-alive heartbeat"
+            git push
+          fi

@@ -1418,7 +1418,8 @@ async function loadClientsIntoSelect() {
   allClients = data || [];
   const select = document.getElementById("clientSelect");
   select.innerHTML = `<option value="">-- Select a client --</option>` +
-    allClients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    allClients.map(c => `<option value="${c.id}" data-search="${escapeHtml(c.address || "")}" data-sub="${escapeHtml(c.address || "")}">${escapeHtml(c.name)}</option>`).join("");
+  makeClientSelectSearchable("clientSelect");
 }
 
 document.getElementById("clientSelect").addEventListener("change", (e) => {

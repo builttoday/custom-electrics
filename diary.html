@@ -13,9 +13,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 .page-content.wide { max-width: 1500px; }
-.diary-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
-.week-nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.week-nav .btn { padding: 8px 14px; font-size: 0.85rem; }
+/* Desktop: one row -- label, view switch, stepper, then the add button pushed right. */
+.diary-toolbar { display: flex; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.diary-toolbar .btn { padding: 8px 14px; font-size: 0.85rem; }
+.diary-toolbar #addEventBtn { margin-left: auto; }
+.step-nav { display: flex; align-items: center; gap: 8px; }
 .week-label { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 1rem; min-width: 190px; text-align: center; }
 .view-switch { display: flex; background: var(--mint); border-radius: 10px; padding: 3px; gap: 2px; }
 .view-switch button { border: none; background: transparent; padding: 7px 14px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; color: var(--ink-soft); cursor: pointer; font-family: inherit; }
@@ -67,9 +69,39 @@
 .month-more { font-size: 0.65rem; color: var(--ink-soft); padding-left: 5px; }
 
 @media (max-width: 860px) {
-  .week-grid, .month-grid { grid-template-columns: 1fr; }
+  .week-grid { grid-template-columns: 1fr; }
   .day-col { min-height: unset; }
-  .month-dow-head { display: none; }
+
+  /* Phone toolbar stacks into four full-width bands, in reading order:
+     date range -> day/week/month -> back/today/forward -> add. */
+  .diary-toolbar { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 16px; }
+  .week-label {
+    min-width: 0; font-size: 1.05rem; padding: 10px 12px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--line);
+  }
+  .view-switch { width: 100%; }
+  .view-switch button { flex: 1; padding: 11px 6px; font-size: 0.86rem; }
+  .step-nav { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px; }
+  .diary-toolbar .btn { padding: 12px 10px; font-size: 0.9rem; }
+  .diary-toolbar #addEventBtn { margin-left: 0; }
+
+  /* Month view: a 7-column grid of 100px cells does not fit a phone, but collapsing it to
+     one column loses the shape of the month entirely. Keep the seven columns and shrink
+     the cells to date-plus-dot instead. */
+  .month-grid { gap: 3px; }
+  .month-dow-head { font-size: 0.58rem; padding-bottom: 2px; }
+  .month-cell { min-height: 52px; padding: 3px; gap: 2px; border-radius: 7px; }
+  .month-cell .cell-num { font-size: 0.72rem; }
+  .month-chip {
+    font-size: 0; padding: 0; height: 5px; border-radius: 3px;
+    background: var(--teal); margin-top: 1px;
+  }
+  .month-more { font-size: 0.55rem; padding-left: 2px; }
+
+  /* Day view: give the timeline the full width and thin the hour gutter. */
+  .day-timeline { max-width: 100%; }
+  .day-hour-labels { width: 42px; }
+  .day-hour-label { font-size: 0.62rem; padding-right: 5px; }
 }
 
 .modal-backdrop { position: fixed; inset: 0; background: rgba(20,40,45,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
@@ -148,17 +180,19 @@
         <p>Jobs and appointments, at a glance, linked straight back to the client.</p>
       </div>
 
+      <!-- Order matters on a phone, where this stacks: the date range you are looking at
+           reads first, then how you are looking at it, then how you move through it. -->
       <div class="diary-toolbar">
-        <div class="week-nav">
-          <div class="view-switch">
-            <button data-view="day">Day</button>
-            <button data-view="week">Week</button>
-            <button data-view="month">Month</button>
-          </div>
-          <button class="btn btn-ghost" id="prevBtn">&larr;</button>
+        <div class="week-label" id="periodLabel"></div>
+        <div class="view-switch">
+          <button data-view="day">Day</button>
+          <button data-view="week">Week</button>
+          <button data-view="month">Month</button>
+        </div>
+        <div class="step-nav">
+          <button class="btn btn-ghost" id="prevBtn" aria-label="Previous">&larr;</button>
           <button class="btn btn-ghost" id="todayBtn">Today</button>
-          <button class="btn btn-ghost" id="nextBtn">&rarr;</button>
-          <div class="week-label" id="periodLabel"></div>
+          <button class="btn btn-ghost" id="nextBtn" aria-label="Next">&rarr;</button>
         </div>
         <button class="btn btn-primary" id="addEventBtn">+ New diary event</button>
       </div>
@@ -308,7 +342,8 @@ async function loadClientsIntoSelect() {
   allClients = data || [];
   const select = document.getElementById("clientSelect");
   select.innerHTML = `<option value="">-- No client (general job) --</option>` +
-    allClients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    allClients.map(c => `<option value="${c.id}" data-search="${escapeHtml([c.address, c.postcode].filter(Boolean).join(" "))}" data-sub="${escapeHtml([c.address, c.postcode].filter(Boolean).join(", "))}">${escapeHtml(c.name)}</option>`).join("");
+  makeClientSelectSearchable("clientSelect");
 }
 document.getElementById("clientSelect").addEventListener("change", (e) => {
   const client = allClients.find(c => c.id === e.target.value);

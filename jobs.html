@@ -164,6 +164,7 @@ async function loadClients() {
   const select = document.getElementById("clientSelect");
   select.innerHTML = `<option value="">-- No client linked --</option>` +
     allClients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  makeClientSelectSearchable("clientSelect");
 }
 
 async function loadJobs() {

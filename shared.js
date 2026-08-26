@@ -188,6 +188,181 @@ function createAttachmentsManager(containerId, parentColumn) {
   };
 }
 
+/* ============================== Searchable select ==============================
+   The client list runs to a few hundred names, which a native <select> turns into an
+   endless scroll on a phone -- there is no way to type at it. This wraps an existing
+   <select> rather than replacing it: the real element stays in the DOM (hidden) and
+   still holds the value, so every page's existing `clientSelect.value = ...`, `.value`
+   reads and change-listeners keep working with no edits.
+
+   Two details worth keeping:
+
+   - The dropdown renders INLINE, not absolutely positioned. These selects sit inside
+     `.modal-card`, which is `overflow-y: auto` and would clip a positioned panel.
+
+   - The element's own `value` property is intercepted so that code doing
+     `select.value = id` WITHOUT dispatching a change event (invoices.html and jobs.html
+     both do) still updates what the user sees. */
+function makeSearchableSelect(selectId, options) {
+  options = options || {};
+  const select = document.getElementById(selectId);
+  if (!select || select.dataset.searchable === "1") return;
+  select.dataset.searchable = "1";
+
+  const placeholder = options.placeholder || "Type to search…";
+  const emptyLabel = options.emptyLabel || "Nothing matches that";
+
+  const wrap = document.createElement("div");
+  wrap.className = "ss-wrap";
+  select.parentNode.insertBefore(wrap, select);
+  wrap.appendChild(select);
+
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "ss-trigger";
+  trigger.innerHTML = `<span class="ss-current"></span><span class="ss-caret">▾</span>`;
+
+  const panel = document.createElement("div");
+  panel.className = "ss-panel hidden";
+  panel.innerHTML = `
+    <input type="text" class="ss-search" placeholder="${placeholder}" autocomplete="off" autocorrect="off" spellcheck="false">
+    <div class="ss-list"></div>`;
+
+  wrap.appendChild(trigger);
+  wrap.appendChild(panel);
+
+  const search = panel.querySelector(".ss-search");
+  const list = panel.querySelector(".ss-list");
+
+  function syncTrigger() {
+    const opt = select.options[select.selectedIndex];
+    const label = opt ? opt.textContent.trim() : "";
+    const isPlaceholder = !select.value;
+    trigger.querySelector(".ss-current").textContent = label || placeholder;
+    trigger.classList.toggle("ss-empty", isPlaceholder);
+  }
+
+  function renderList() {
+    const q = search.value.trim().toLowerCase();
+    const opts = [...select.options];
+    const matches = opts.filter(o => {
+      if (!q) return true;
+      // data-search lets a page widen the haystack (address as well as name) without
+      // the option's visible label having to carry it.
+      const hay = ((o.dataset.search || "") + " " + o.textContent).toLowerCase();
+      return q.split(/\s+/).every(term => hay.includes(term));
+    });
+    if (!matches.length) {
+      list.innerHTML = `<div class="ss-none">${emptyLabel}</div>`;
+      return;
+    }
+    list.innerHTML = matches.map(o => `
+      <button type="button" class="ss-option${o.value === select.value ? " selected" : ""}" data-value="${encodeURIComponent(o.value)}">
+        <span class="ss-option-label">${o.textContent.trim().replace(/[<>&]/g, "")}</span>
+        ${o.dataset.sub ? `<span class="ss-option-sub">${o.dataset.sub.replace(/[<>&]/g, "")}</span>` : ""}
+      </button>`).join("");
+
+    list.querySelectorAll(".ss-option").forEach(btn => {
+      btn.addEventListener("click", () => {
+        choose(decodeURIComponent(btn.dataset.value));
+      });
+    });
+  }
+
+  function choose(value) {
+    nativeValueSetter.call(select, value);
+    syncTrigger();
+    close();
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function open() {
+    panel.classList.remove("hidden");
+    trigger.classList.add("ss-open");
+    search.value = "";
+    renderList();
+    // Focusing immediately on iOS pops the keyboard over the list; the frame's delay
+    // lets the panel lay out first so the list is still visible above it.
+    requestAnimationFrame(() => search.focus());
+  }
+  function close() {
+    panel.classList.add("hidden");
+    trigger.classList.remove("ss-open");
+  }
+
+  trigger.addEventListener("click", () => {
+    if (panel.classList.contains("hidden")) open(); else close();
+  });
+  search.addEventListener("input", renderList);
+  search.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); close(); }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const first = list.querySelector(".ss-option");
+      if (first) first.click();
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (!wrap.contains(e.target)) close();
+  });
+
+  // Keep the trigger honest when the page sets the value or repopulates the options.
+  const nativeValueSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
+  Object.defineProperty(select, "value", {
+    configurable: true,
+    get() { return Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").get.call(this); },
+    set(v) { nativeValueSetter.call(this, v); syncTrigger(); },
+  });
+  select.addEventListener("change", syncTrigger);
+  new MutationObserver(syncTrigger).observe(select, { childList: true });
+
+  /* A hidden <select> carrying `required` makes Chrome refuse to submit with
+     "An invalid form control is not focusable" -- and it refuses SILENTLY, so the page just
+     looks broken. Drop the attribute and enforce the same rule ourselves, on the visible
+     control, rather than leaving the field unvalidated. */
+  if (select.required) {
+    select.required = false;
+    const form = select.form || wrap.closest("form");
+    if (form) {
+      form.addEventListener("submit", (e) => {
+        if (select.value) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        let err = wrap.querySelector(".ss-error");
+        if (!err) {
+          err = document.createElement("div");
+          err.className = "ss-error";
+          wrap.appendChild(err);
+        }
+        err.textContent = options.requiredMessage || "Pick one to carry on.";
+        trigger.classList.add("ss-invalid");
+        // Guarded: not every webview this runs in implements scrollIntoView, and losing the
+        // scroll must not cost the user the validation message itself.
+        if (trigger.scrollIntoView) trigger.scrollIntoView({ block: "center", behavior: "smooth" });
+        open();
+      }, true); // capture, so it runs before the page's own submit handler
+      select.addEventListener("change", () => {
+        trigger.classList.remove("ss-invalid");
+        const err = wrap.querySelector(".ss-error");
+        if (err) err.remove();
+      });
+    }
+  }
+
+  syncTrigger();
+  return { refresh: syncTrigger };
+}
+
+/* Pages call this straight after populating #clientSelect. Kept as its own named helper
+   so the "Client *" requirement message stays consistent across all four forms. */
+function makeClientSelectSearchable(selectId) {
+  return makeSearchableSelect(selectId || "clientSelect", {
+    placeholder: "Type a name, street or postcode…",
+    emptyLabel: "No customer matches that",
+    requiredMessage: "Choose a customer to carry on.",
+  });
+}
+
 /* ============================== Init (call on every authenticated page) ============================== */
 function initAppShell(activeId) {
   renderNav(activeId);

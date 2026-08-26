@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accounts — CRM</title>
+<meta name="theme-color" content="#1E4E54">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='47' fill='%231E4E54' stroke='%23E2915C' stroke-width='6'/%3E%3Cpath d='M56 18 26 56h24l-4 26 30-38H52l4-26Z' fill='%23EAF3F1'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<style>
+.acct-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.acct-toolbar select { background: var(--surface); border: 1.5px solid var(--line); color: var(--ink); border-radius: 10px; padding: 11px 13px; font-family: inherit; font-size: 16px; font-weight: 600; }
+.acct-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.money-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 14px; margin-bottom: 12px; }
+.money-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); }
+.money-card .m-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+.money-card .m-value { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 1.55rem; margin-top: 6px; color: var(--teal); line-height: 1.15; }
+.money-card .m-note { font-size: 0.74rem; color: var(--ink-soft); margin-top: 4px; }
+.money-card.good .m-value { color: var(--good); }
+.money-card.warn .m-value { color: var(--orange); }
+.money-card.spend .m-value { color: var(--danger); }
+.money-card.profit { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal) inset; }
+
+.section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 30px 0 14px; }
+.section-head h2 { font-size: 1.1rem; margin: 0; }
+.section-head p { margin: 2px 0 0; font-size: 0.8rem; color: var(--ink-soft); }
+
+/* ---- Month bars ---- */
+.month-bars { display: flex; flex-direction: column; gap: 8px; }
+.mb-row { display: grid; grid-template-columns: 62px 1fr; gap: 10px; align-items: center; }
+.mb-label { font-size: 0.76rem; font-weight: 700; color: var(--ink-soft); }
+.mb-track { display: flex; flex-direction: column; gap: 3px; }
+.mb-bar { height: 12px; border-radius: 6px; min-width: 2px; display: flex; align-items: center; }
+.mb-bar.income { background: var(--good); }
+.mb-bar.spend { background: var(--danger); }
+.mb-amt { font-size: 0.66rem; font-weight: 700; color: var(--ink-soft); padding-left: 6px; white-space: nowrap; }
+
+/* ---- Expense list ---- */
+.exp-list { display: flex; flex-direction: column; gap: 10px; }
+.exp-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); display: flex; gap: 12px; align-items: center; cursor: pointer; }
+.exp-card:hover { border-color: var(--teal); }
+.exp-thumb { width: 52px; height: 52px; border-radius: 10px; background: var(--mint); flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+.exp-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.exp-main { flex: 1; min-width: 0; }
+.exp-main .e-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.exp-main .e-supplier { font-weight: 700; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exp-main .e-amount { font-family: "Poppins", sans-serif; font-weight: 700; color: var(--danger); white-space: nowrap; }
+.exp-main .e-sub { font-size: 0.76rem; color: var(--ink-soft); margin-top: 2px; }
+
+/* ---- Modals ---- */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(20,40,45,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.modal-card { background: var(--surface); border-radius: var(--radius); padding: 26px; width: 100%; max-width: 480px; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+.modal-card h2 { margin: 0 0 18px; font-size: 1.2rem; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; flex-wrap: wrap; }
+.hidden { display: none !important; }
+.form-status { font-size: 0.85rem; margin: 0 0 12px; min-height: 1.1em; }
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; min-width: 0; }
+.field-help { font-size: 0.76rem; color: var(--ink-soft); margin: -8px 0 12px; }
+
+/* ---- Receipt scan ---- */
+.scan-drop { border: 2px dashed var(--line); border-radius: var(--radius); padding: 26px 18px; text-align: center; background: var(--mint); margin-bottom: 14px; }
+.scan-drop .sd-icon { font-size: 2.2rem; }
+.scan-drop p { margin: 8px 0 14px; font-size: 0.85rem; color: var(--ink-soft); }
+.scan-preview { width: 100%; max-height: 220px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); background: var(--mint); margin-bottom: 12px; display: block; }
+.scan-progress { height: 8px; border-radius: 5px; background: var(--mint); overflow: hidden; margin-bottom: 8px; }
+.scan-progress > div { height: 100%; background: var(--teal); width: 0%; transition: width 0.2s ease; }
+.scan-log { font-size: 0.78rem; color: var(--ink-soft); min-height: 1.2em; margin: 0 0 14px; }
+.ocr-note { font-size: 0.74rem; color: var(--ink-soft); background: var(--mint); border-radius: 10px; padding: 9px 11px; margin: -4px 0 12px; }
+.ocr-raw { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.7rem; white-space: pre-wrap; max-height: 150px; overflow-y: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <nav class="sidebar" id="sidebarNav"></nav>
+
+  <div class="main-col">
+    <div class="topbar">
+      <div id="topbarBrand"></div>
+    </div>
+
+    <div class="page-content">
+      <div class="page-header">
+        <h1>Accounts</h1>
+        <p>What came in, what went out, and what's left — with receipts read straight off the photo.</p>
+      </div>
+
+      <div class="acct-toolbar">
+        <select id="periodSelect">
+          <option value="tax-this">This tax year</option>
+          <option value="tax-last">Last tax year</option>
+          <option value="month-this">This month</option>
+          <option value="month-last">Last month</option>
+          <option value="last12">Last 12 months</option>
+          <option value="all">All time</option>
+        </select>
+        <div class="acct-actions">
+          <button class="btn btn-accent" id="scanReceiptBtn">📷 Snap a receipt</button>
+          <button class="btn btn-ghost" id="addExpenseBtn">+ Add by hand</button>
+        </div>
+      </div>
+
+      <div id="summaryArea"><div class="empty-note">Loading your accounts…</div></div>
+
+      <div class="section-head">
+        <div>
+          <h2>Month by month</h2>
+          <p>Green is money in (paid invoices), red is money out.</p>
+        </div>
+      </div>
+      <div class="card" id="monthArea"><div class="empty-note" style="border:none;padding:20px;">…</div></div>
+
+      <div class="section-head">
+        <div>
+          <h2>Expenses &amp; receipts</h2>
+          <p id="expenseCount"></p>
+        </div>
+        <button class="btn btn-ghost" id="exportCsvBtn">⬇ Export CSV</button>
+      </div>
+      <div id="expenseArea"><div class="empty-note">…</div></div>
+    </div>
+  </div>
+</div>
+
+<nav class="tab-bar" id="tabBarNav"></nav>
+
+<!-- ============================== Receipt scan ============================== -->
+<div class="modal-backdrop hidden" id="scanModal">
+  <div class="modal-card">
+    <h2>Snap a receipt</h2>
+    <div id="scanIntro">
+      <div class="scan-drop">
+        <div class="sd-icon">🧾</div>
+        <p>Take a photo of the receipt, or pick one from your camera roll.<br>The text is read on this phone — nothing is sent anywhere.</p>
+        <button type="button" class="btn btn-primary" id="scanTakePhotoBtn">📷 Take photo</button>
+        <button type="button" class="btn btn-ghost" id="scanPickBtn">🖼️ Choose file</button>
+      </div>
+    </div>
+    <div id="scanWorking" class="hidden">
+      <img id="scanPreview" class="scan-preview" alt="Receipt preview">
+      <div class="scan-progress"><div id="scanBar"></div></div>
+      <p class="scan-log" id="scanLog"></p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="scanCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="scanCameraInput" accept="image/*" capture="environment" class="hidden">
+<input type="file" id="scanFileInput" accept="image/*" class="hidden">
+
+<!-- ============================== Expense form ============================== -->
+<div class="modal-backdrop hidden" id="expenseModal">
+  <div class="modal-card">
+    <h2 id="expenseModalTitle">Add expense</h2>
+    <p class="form-status" id="formStatus"></p>
+    <div id="ocrNote" class="ocr-note hidden"></div>
+    <img id="expReceiptPreview" class="scan-preview hidden" alt="Receipt">
+    <form id="expenseForm">
+      <div class="field-row">
+        <div class="field">
+          <label for="expDate">Date *</label>
+          <input type="date" id="expDate" required>
+        </div>
+        <div class="field">
+          <label for="expAmount">Total paid (£) *</label>
+          <input type="number" id="expAmount" step="0.01" min="0" required placeholder="0.00">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="expVat">VAT included (£)</label>
+          <input type="number" id="expVat" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label for="expCategory">Category</label>
+          <select id="expCategory"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="expSupplier">Supplier</label>
+        <input type="text" id="expSupplier" placeholder="e.g. Screwfix">
+      </div>
+      <div class="field">
+        <label for="expPayment">Paid by</label>
+        <select id="expPayment">
+          <option value="">— Not recorded —</option>
+          <option>Card</option>
+          <option>Cash</option>
+          <option>Bank transfer</option>
+          <option>Direct debit</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="expNotes">Notes</label>
+        <textarea id="expNotes" placeholder="What it was for, which job..."></textarea>
+      </div>
+      <details id="ocrRawWrap" class="hidden" style="margin-bottom:14px;">
+        <summary style="cursor:pointer;font-size:0.78rem;color:var(--ink-soft);font-weight:700;">Show the text the scan read</summary>
+        <div class="ocr-raw" id="ocrRaw" style="margin-top:8px;"></div>
+      </details>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger hidden" id="expDeleteBtn">Delete</button>
+        <button type="button" class="btn btn-ghost" id="expCancelBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="expSaveBtn">Save expense</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+initAppShell("accounts");
+
+const CATEGORIES = [
+  "Materials", "Tools & equipment", "Fuel & travel", "Vehicle", "Subcontractors",
+  "Insurance", "Certification & training", "Phone & internet", "Software & subscriptions",
+  "Office & admin", "Accountancy & fees", "Other",
+];
+
+let businessId = null;
+let allInvoices = [];
+let allExpenses = [];
+let editingExpenseId = null;
+let pendingReceiptFile = null; // photo captured this session, uploaded on save
+
+function money(n) {
+  return "£" + (Number(n) || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function toDateInput(d) {
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/* Invoice totals are derived the same way invoices.html does it -- line items times qty,
+   plus the invoice's own VAT rate. There is no stored total column to read. */
+function invoiceTotal(inv) {
+  const subtotal = (inv.line_items || []).reduce((sum, i) => sum + (Number(i.qty) || 0) * (Number(i.unit_price) || 0), 0);
+  return subtotal * (1 + (Number(inv.vat_rate) || 0) / 100);
+}
+
+/* ============================== Period ==============================
+   UK tax year runs 6 April to 5 April, which is what a sole trader's books are cut to --
+   so that's the default period rather than a calendar year. */
+function taxYearStart(forDate) {
+  const y = forDate.getFullYear();
+  const boundary = new Date(y, 3, 6); // 6 April
+  return forDate < boundary ? new Date(y - 1, 3, 6) : new Date(y, 3, 6);
+}
+function getPeriod(key) {
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  if (key === "all") return { start: null, end: null, label: "All time" };
+  if (key === "tax-this") {
+    const s = taxYearStart(now);
+    return { start: s, end: new Date(s.getFullYear() + 1, 3, 6), label: `Tax year ${s.getFullYear()}/${String(s.getFullYear() + 1).slice(2)}` };
+  }
+  if (key === "tax-last") {
+    const s0 = taxYearStart(now);
+    const s = new Date(s0.getFullYear() - 1, 3, 6);
+    return { start: s, end: s0, label: `Tax year ${s.getFullYear()}/${String(s.getFullYear() + 1).slice(2)}` };
+  }
+  if (key === "month-this") {
+    const s = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { start: s, end: new Date(now.getFullYear(), now.getMonth() + 1, 1), label: s.toLocaleDateString("en-GB", { month: "long", year: "numeric" }) };
+  }
+  if (key === "month-last") {
+    const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return { start: s, end: new Date(now.getFullYear(), now.getMonth(), 1), label: s.toLocaleDateString("en-GB", { month: "long", year: "numeric" }) };
+  }
+  const s = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  return { start: s, end: new Date(now.getFullYear(), now.getMonth() + 1, 1), label: "Last 12 months" };
+}
+function inPeriod(dateStr, period) {
+  if (!dateStr) return false;
+  if (!period.start) return true;
+  const d = new Date(dateStr);
+  return d >= period.start && d < period.end;
+}
+
+/* ============================== Summary ============================== */
+function renderSummary() {
+  const period = getPeriod(document.getElementById("periodSelect").value);
+  const invs = allInvoices.filter(i => inPeriod(i.issue_date, period));
+  const exps = allExpenses.filter(e => inPeriod(e.expense_date, period));
+
+  const paid = invs.filter(i => i.status === "paid");
+  const issued = invs.filter(i => i.status !== "draft");   // sent + paid
+  const outstanding = invs.filter(i => i.status === "sent");
+  const drafts = invs.filter(i => i.status === "draft");
+
+  const paidTotal = paid.reduce((s, i) => s + invoiceTotal(i), 0);
+  const issuedTotal = issued.reduce((s, i) => s + invoiceTotal(i), 0);
+  const outstandingTotal = outstanding.reduce((s, i) => s + invoiceTotal(i), 0);
+  const spendTotal = exps.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const vatOnSpend = exps.reduce((s, e) => s + (Number(e.vat_amount) || 0), 0);
+  const profit = paidTotal - spendTotal;
+
+  document.getElementById("summaryArea").innerHTML = `
+    <div class="money-grid">
+      <div class="money-card good">
+        <div class="m-label">Revenue — paid</div>
+        <div class="m-value">${money(paidTotal)}</div>
+        <div class="m-note">${paid.length} invoice${paid.length === 1 ? "" : "s"} settled · ${period.label}</div>
+      </div>
+      <div class="money-card">
+        <div class="m-label">Revenue — issued</div>
+        <div class="m-value">${money(issuedTotal)}</div>
+        <div class="m-note">${issued.length} sent or paid${drafts.length ? ` · ${drafts.length} still draft` : ""}</div>
+      </div>
+      <div class="money-card warn">
+        <div class="m-label">Still owed</div>
+        <div class="m-value">${money(outstandingTotal)}</div>
+        <div class="m-note">${outstanding.length} sent, not yet paid</div>
+      </div>
+      <div class="money-card spend">
+        <div class="m-label">Expenses</div>
+        <div class="m-value">${money(spendTotal)}</div>
+        <div class="m-note">${exps.length} receipt${exps.length === 1 ? "" : "s"}${vatOnSpend ? ` · ${money(vatOnSpend)} VAT` : ""}</div>
+      </div>
+      <div class="money-card profit">
+        <div class="m-label">Profit (cash in hand)</div>
+        <div class="m-value" style="color:${profit >= 0 ? "var(--good)" : "var(--danger)"}">${money(profit)}</div>
+        <div class="m-note">Paid revenue less expenses</div>
+      </div>
+    </div>`;
+
+  renderMonths(period);
+  renderExpenses(exps, period);
+}
+
+function renderMonths(period) {
+  // Twelve months back from the end of the period (or from today for "all time").
+  const end = period.end ? new Date(period.end) : new Date();
+  const months = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(end.getFullYear(), end.getMonth() - 1 - i, 1);
+    months.push({ d, key: `${d.getFullYear()}-${d.getMonth()}`, income: 0, spend: 0 });
+  }
+  const byKey = Object.fromEntries(months.map(m => [m.key, m]));
+
+  allInvoices.filter(i => i.status === "paid" && i.issue_date).forEach(i => {
+    const d = new Date(i.issue_date);
+    const m = byKey[`${d.getFullYear()}-${d.getMonth()}`];
+    if (m) m.income += invoiceTotal(i);
+  });
+  allExpenses.forEach(e => {
+    const d = new Date(e.expense_date);
+    const m = byKey[`${d.getFullYear()}-${d.getMonth()}`];
+    if (m) m.spend += Number(e.amount) || 0;
+  });
+
+  const peak = Math.max(1, ...months.map(m => Math.max(m.income, m.spend)));
+  const area = document.getElementById("monthArea");
+  if (!months.some(m => m.income || m.spend)) {
+    area.innerHTML = `<div class="empty-note" style="border:none;padding:24px;">Nothing recorded in the last 12 months yet.</div>`;
+    return;
+  }
+  area.innerHTML = `<div class="month-bars">${months.map(m => `
+    <div class="mb-row">
+      <div class="mb-label">${m.d.toLocaleDateString("en-GB", { month: "short", year: "2-digit" })}</div>
+      <div class="mb-track">
+        <div class="mb-bar income" style="width:${Math.max(0.4, (m.income / peak) * 100)}%"><span class="mb-amt">${m.income ? money(m.income) : ""}</span></div>
+        <div class="mb-bar spend" style="width:${Math.max(0.4, (m.spend / peak) * 100)}%"><span class="mb-amt">${m.spend ? money(m.spend) : ""}</span></div>
+      </div>
+    </div>`).join("")}</div>`;
+}
+
+const signedUrlCache = {};
+async function receiptUrl(path) {
+  if (!path) return null;
+  if (signedUrlCache[path]) return signedUrlCache[path];
+  const { data } = await supabaseClient.storage.from("attachments").createSignedUrl(path, 3600);
+  signedUrlCache[path] = data ? data.signedUrl : null;
+  return signedUrlCache[path];
+}
+
+async function renderExpenses(exps, period) {
+  const area = document.getElementById("expenseArea");
+  document.getElementById("expenseCount").textContent =
+    `${exps.length} in ${period.label.toLowerCase()} · ${money(exps.reduce((s, e) => s + (Number(e.amount) || 0), 0))}`;
+
+  if (!exps.length) {
+    area.innerHTML = `<div class="empty-note">No expenses in this period. Tap "Snap a receipt" and point the camera at one.</div>`;
+    return;
+  }
+  const sorted = [...exps].sort((a, b) => (b.expense_date || "").localeCompare(a.expense_date || ""));
+  area.innerHTML = `<div class="exp-list">${sorted.map(e => `
+    <div class="exp-card" data-expense="${e.id}">
+      <div class="exp-thumb" data-thumb="${e.id}">${e.receipt_path ? "" : "🧾"}</div>
+      <div class="exp-main">
+        <div class="e-top">
+          <span class="e-supplier">${escapeHtml(e.supplier || "Unnamed expense")}</span>
+          <span class="e-amount">${money(e.amount)}</span>
+        </div>
+        <div class="e-sub">${new Date(e.expense_date).toLocaleDateString("en-GB")} · ${escapeHtml(e.category || "Other")}${e.vat_amount ? " · VAT " + money(e.vat_amount) : ""}</div>
+      </div>
+    </div>`).join("")}</div>`;
+
+  area.querySelectorAll("[data-expense]").forEach(card =>
+    card.addEventListener("click", () => openExpenseModal(sorted.find(e => e.id === card.dataset.expense))));
+
+  // Thumbnails need a signed URL each -- fill them in after the list is already on screen
+  // so a slow storage round-trip never delays the numbers.
+  sorted.filter(e => e.receipt_path).forEach(async e => {
+    const url = await receiptUrl(e.receipt_path);
+    const el = area.querySelector(`[data-thumb="${e.id}"]`);
+    if (el && url) el.innerHTML = `<img src="${url}" alt="Receipt" loading="lazy">`;
+  });
+}
+
+/* ============================== Data ============================== */
+async function loadAll() {
+  const [invRes, expRes] = await Promise.all([
+    supabaseClient.from("invoices").select("id, status, issue_date, line_items, vat_rate").eq("business_id", businessId),
+    supabaseClient.from("expenses").select("*").eq("business_id", businessId).order("expense_date", { ascending: false }),
+  ]);
+  if (invRes.error) {
+    document.getElementById("summaryArea").innerHTML = `<div class="empty-note">Couldn't load invoices: ${escapeHtml(invRes.error.message)}</div>`;
+    return;
+  }
+  if (expRes.error) {
+    // The expenses table is added by custom-electrics-add-expenses.sql -- say so plainly
+    // rather than showing a raw PostgREST "relation does not exist".
+    const missing = /does not exist|schema cache/i.test(expRes.error.message);
+    document.getElementById("expenseArea").innerHTML = `<div class="empty-note">${
+      missing
+        ? "The expenses table isn't set up yet — run <code>custom-electrics-add-expenses.sql</code> in the Supabase SQL editor."
+        : "Couldn't load expenses: " + escapeHtml(expRes.error.message)}</div>`;
+    allExpenses = [];
+  } else {
+    allExpenses = expRes.data || [];
+  }
+  allInvoices = invRes.data || [];
+  renderSummary();
+}
+
+/* ============================== Expense form ============================== */
+function openExpenseModal(expense) {
+  const form = document.getElementById("expenseForm");
+  form.reset();
+  document.getElementById("formStatus").textContent = "";
+  document.getElementById("ocrNote").classList.add("hidden");
+  document.getElementById("ocrRawWrap").classList.add("hidden");
+  document.getElementById("expReceiptPreview").classList.add("hidden");
+  document.getElementById("expCategory").innerHTML = CATEGORIES.map(c => `<option>${c}</option>`).join("");
+  pendingReceiptFile = null;
+
+  editingExpenseId = expense ? expense.id : null;
+  document.getElementById("expenseModalTitle").textContent = expense ? "Edit expense" : "Add expense";
+  document.getElementById("expSaveBtn").textContent = expense ? "Save changes" : "Save expense";
+  document.getElementById("expDeleteBtn").classList.toggle("hidden", !expense);
+
+  if (expense) {
+    document.getElementById("expDate").value = expense.expense_date || "";
+    document.getElementById("expAmount").value = expense.amount ?? "";
+    document.getElementById("expVat").value = expense.vat_amount || "";
+    document.getElementById("expCategory").value = expense.category || "Other";
+    document.getElementById("expSupplier").value = expense.supplier || "";
+    document.getElementById("expPayment").value = expense.payment_method || "";
+    document.getElementById("expNotes").value = expense.notes || "";
+    if (expense.ocr_text) {
+      document.getElementById("ocrRaw").textContent = expense.ocr_text;
+      document.getElementById("ocrRawWrap").classList.remove("hidden");
+    }
+    if (expense.receipt_path) {
+      receiptUrl(expense.receipt_path).then(url => {
+        if (!url) return;
+        const img = document.getElementById("expReceiptPreview");
+        img.src = url; img.classList.remove("hidden");
+      });
+    }
+  } else {
+    document.getElementById("expDate").value = toDateInput(new Date());
+    document.getElementById("expCategory").value = "Materials";
+  }
+  document.getElementById("expenseModal").classList.remove("hidden");
+}
+function closeExpenseModal() { document.getElementById("expenseModal").classList.add("hidden"); }
+
+document.getElementById("addExpenseBtn").addEventListener("click", () => openExpenseModal(null));
+document.getElementById("expCancelBtn").addEventListener("click", closeExpenseModal);
+document.getElementById("periodSelect").addEventListener("change", renderSummary);
+
+document.getElementById("expDeleteBtn").addEventListener("click", async () => {
+  if (!editingExpenseId) return;
+  if (!confirm("Delete this expense and its receipt photo?")) return;
+  const exp = allExpenses.find(e => e.id === editingExpenseId);
+  if (exp && exp.receipt_path) await supabaseClient.storage.from("attachments").remove([exp.receipt_path]);
+  const { error } = await supabaseClient.from("expenses").delete().eq("id", editingExpenseId);
+  if (error) { alert("Couldn't delete: " + error.message); return; }
+  closeExpenseModal();
+  await loadAll();
+});
+
+document.getElementById("expenseForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("formStatus");
+  const btn = document.getElementById("expSaveBtn");
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  btn.disabled = true; btn.textContent = "Saving…";
+  try {
+    const record = {
+      expense_date: document.getElementById("expDate").value,
+      amount: Number(document.getElementById("expAmount").value) || 0,
+      vat_amount: Number(document.getElementById("expVat").value) || 0,
+      category: document.getElementById("expCategory").value,
+      supplier: document.getElementById("expSupplier").value.trim() || null,
+      payment_method: document.getElementById("expPayment").value || null,
+      notes: document.getElementById("expNotes").value.trim() || null,
+    };
+    const rawOcr = document.getElementById("ocrRaw").textContent;
+    if (pendingReceiptFile && rawOcr) record.ocr_text = rawOcr;
+
+    let expenseId = editingExpenseId;
+    if (expenseId) {
+      const { error } = await supabaseClient.from("expenses").update(record).eq("id", expenseId);
+      if (error) throw error;
+    } else {
+      const { data: userData } = await supabaseClient.auth.getUser();
+      const { data, error } = await supabaseClient.from("expenses")
+        .insert({ ...record, business_id: businessId, created_by: userData.user ? userData.user.id : null })
+        .select().single();
+      if (error) throw error;
+      expenseId = data.id;
+    }
+
+    // The photo goes up after the row exists, because the storage path includes the expense id.
+    if (pendingReceiptFile) {
+      status.textContent = "Uploading the receipt photo…";
+      const safeName = pendingReceiptFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${businessId}/expense/${expenseId}/${Date.now()}-${safeName}`;
+      const { error: upErr } = await supabaseClient.storage.from("attachments")
+        .upload(path, pendingReceiptFile, { contentType: pendingReceiptFile.type });
+      if (upErr) throw new Error("Expense saved, but the photo didn't upload: " + upErr.message);
+      const { error: pathErr } = await supabaseClient.from("expenses").update({ receipt_path: path }).eq("id", expenseId);
+      if (pathErr) throw pathErr;
+    }
+
+    closeExpenseModal();
+    await loadAll();
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = editingExpenseId ? "Save changes" : "Save expense";
+  }
+});
+
+/* ============================== CSV export ============================== */
+document.getElementById("exportCsvBtn").addEventListener("click", () => {
+  const period = getPeriod(document.getElementById("periodSelect").value);
+  const exps = allExpenses.filter(e => inPeriod(e.expense_date, period));
+  const rows = [["Date", "Supplier", "Category", "Total", "VAT", "Paid by", "Notes"]];
+  exps.forEach(e => rows.push([
+    e.expense_date || "", e.supplier || "", e.category || "", (Number(e.amount) || 0).toFixed(2),
+    (Number(e.vat_amount) || 0).toFixed(2), e.payment_method || "", (e.notes || "").replace(/\s+/g, " "),
+  ]));
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `expenses-${period.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+/* ============================== Receipt OCR ==============================
+   Reading happens entirely on the phone with tesseract.js -- no API key, no per-scan cost,
+   and the photo never leaves the device before you've chosen to save it. The trade-off is
+   accuracy on faded till roll, so every field the parser fills is pre-filled into the normal
+   expense form for you to correct, never saved straight through. */
+function openScanModal() {
+  document.getElementById("scanIntro").classList.remove("hidden");
+  document.getElementById("scanWorking").classList.add("hidden");
+  document.getElementById("scanBar").style.width = "0%";
+  document.getElementById("scanLog").textContent = "";
+  document.getElementById("scanModal").classList.remove("hidden");
+}
+function closeScanModal() { document.getElementById("scanModal").classList.add("hidden"); }
+document.getElementById("scanReceiptBtn").addEventListener("click", openScanModal);
+document.getElementById("scanCancelBtn").addEventListener("click", closeScanModal);
+document.getElementById("scanTakePhotoBtn").addEventListener("click", () => document.getElementById("scanCameraInput").click());
+document.getElementById("scanPickBtn").addEventListener("click", () => document.getElementById("scanFileInput").click());
+["scanCameraInput", "scanFileInput"].forEach(id => {
+  document.getElementById(id).addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (file) runScan(file);
+  });
+});
+
+/* Downscale + grayscale + contrast stretch before OCR. A 12MP phone photo of a receipt is
+   mostly wasted pixels and tesseract gets both slower and less accurate on it; a 1400px-wide
+   high-contrast grayscale version reads noticeably better. */
+function preprocess(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl);
+      const maxW = 1400;
+      const scale = Math.min(1, maxW / img.naturalWidth);
+      const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      const data = ctx.getImageData(0, 0, w, h);
+      const px = data.data;
+      // First pass: grayscale, and find the 5th/95th percentile luminance to stretch against.
+      const hist = new Uint32Array(256);
+      for (let i = 0; i < px.length; i += 4) {
+        const g = (px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114) | 0;
+        px[i] = px[i + 1] = px[i + 2] = g;
+        hist[g]++;
+      }
+      const total = w * h;
+      let lo = 0, hi = 255, acc = 0;
+      for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc > total * 0.05) { lo = v; break; } }
+      acc = 0;
+      for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc > total * 0.05) { hi = v; break; } }
+      const span = Math.max(1, hi - lo);
+      for (let i = 0; i < px.length; i += 4) {
+        const v = Math.max(0, Math.min(255, ((px[i] - lo) / span) * 255));
+        px[i] = px[i + 1] = px[i + 2] = v;
+      }
+      ctx.putImageData(data, 0, 0);
+      canvas.toBlob(b => b ? resolve({ blob: b, dataUrl: canvas.toDataURL("image/jpeg", 0.7) }) : reject(new Error("Couldn't process the image")), "image/jpeg", 0.8);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error("That file isn't an image this browser can open.")); };
+    img.src = objUrl;
+  });
+}
+
+async function runScan(file) {
+  document.getElementById("scanIntro").classList.add("hidden");
+  document.getElementById("scanWorking").classList.remove("hidden");
+  const bar = document.getElementById("scanBar");
+  const log = document.getElementById("scanLog");
+  log.style.color = "var(--ink-soft)";
+  log.textContent = "Tidying up the photo…";
+
+  try {
+    const { blob, dataUrl } = await preprocess(file);
+    document.getElementById("scanPreview").src = dataUrl;
+    log.textContent = "Reading the receipt… (first scan downloads the reader, ~2MB)";
+
+    const { data } = await Tesseract.recognize(blob, "eng", {
+      logger: m => {
+        if (m.status === "recognizing text") {
+          bar.style.width = Math.round(m.progress * 100) + "%";
+          log.textContent = `Reading the receipt… ${Math.round(m.progress * 100)}%`;
+        } else if (m.status) {
+          log.textContent = m.status.charAt(0).toUpperCase() + m.status.slice(1) + "…";
+        }
+      },
+    });
+
+    const text = (data && data.text) || "";
+    const parsed = parseReceipt(text);
+
+    // Keep the ORIGINAL photo for the record -- the preprocessed one is for the reader's
+    // benefit, not something you'd want to show HMRC.
+    closeScanModal();
+    openExpenseModal(null);
+    pendingReceiptFile = file; // set AFTER openExpenseModal, which clears it
+
+    const note = document.getElementById("ocrNote");
+    const found = [];
+    if (parsed.total != null) { document.getElementById("expAmount").value = parsed.total.toFixed(2); found.push("total"); }
+    if (parsed.vat != null) { document.getElementById("expVat").value = parsed.vat.toFixed(2); found.push("VAT"); }
+    if (parsed.date) { document.getElementById("expDate").value = parsed.date; found.push("date"); }
+    if (parsed.supplier) { document.getElementById("expSupplier").value = parsed.supplier; found.push("supplier"); }
+    if (parsed.category) document.getElementById("expCategory").value = parsed.category;
+
+    note.classList.remove("hidden");
+    note.innerHTML = found.length
+      ? `📷 Read from the photo: <strong>${found.join(", ")}</strong>. Check them before saving — on-device reading gets faded till roll wrong sometimes.`
+      : `📷 The scan couldn't make out the figures — the photo is attached, but you'll need to type the amounts in.`;
+
+    document.getElementById("ocrRaw").textContent = text.trim() || "(nothing readable)";
+    document.getElementById("ocrRawWrap").classList.remove("hidden");
+
+    const img = document.getElementById("expReceiptPreview");
+    img.src = dataUrl; img.classList.remove("hidden");
+  } catch (err) {
+    log.style.color = "var(--danger)";
+    log.textContent = "Couldn't read that: " + err.message;
+    bar.style.width = "0%";
+  }
+}
+
+/* ---- Receipt text parsing ---- */
+const SUPPLIER_CATEGORIES = [
+  [/screwfix|toolstation|city electrical|cef\b|edmundson|rexel|wolseley|plumb ?center|travis perkins|wickes|b ?& ?q|jewson|selco|electric center/i, "Materials"],
+  [/dewalt|makita|milwaukee|bosch|erbauer|axminster|machine ?mart/i, "Tools & equipment"],
+  [/shell|bp\b|esso|texaco|morrisons fuel|sainsbury.?s petrol|asda (petrol|fuel)|gulf|jet\b|applegreen|costa coffee|greggs/i, "Fuel & travel"],
+  [/halfords|kwik.?fit|national tyres|euro ?car ?parts|dvla|congestion|dart ?charge|parking/i, "Vehicle"],
+  [/vodafone|ee\b|o2\b|three\b|bt\b|virgin media|sky\b/i, "Phone & internet"],
+  [/napit|niceic|elecsa|stroma|city ?& ?guilds|18th edition/i, "Certification & training"],
+  [/adobe|microsoft|google|dropbox|xero|quickbooks|freeagent/i, "Software & subscriptions"],
+  [/aviva|axa|hiscox|direct line|simply business|zurich/i, "Insurance"],
+  [/staples|ryman|amazon|argos|post office|royal mail/i, "Office & admin"],
+];
+
+function moneyOnLine(line) {
+  // Grab the last money-looking number on a line -- receipts put the label first, figure last.
+  const matches = [...line.matchAll(/(?:£|GBP)?\s?(\d{1,3}(?:[,\s]\d{3})*(?:[.,]\d{2})|\d+[.,]\d{2})/g)];
+  if (!matches.length) return null;
+  const raw = matches[matches.length - 1][1].replace(/[,\s](?=\d{3}\b)/g, "").replace(",", ".");
+  const n = parseFloat(raw);
+  return isNaN(n) ? null : n;
+}
+
+function parseReceipt(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const out = { total: null, vat: null, date: null, supplier: null, category: null };
+
+  // --- Total: strongest label wins; "subtotal" and "cash/change" lines are excluded. ---
+  const totalPatterns = [
+    /\b(grand\s*total|amount\s*due|balance\s*due|total\s*to\s*pay|to\s*pay)\b/i,
+    /\b(total)\b/i,
+    /\b(card|contactless|visa|mastercard|debit|credit)\b.*\d/i,
+  ];
+  for (const pat of totalPatterns) {
+    const hits = lines.filter(l => pat.test(l) && !/sub\s*-?\s*total|change|cash\s*(back|tendered)|no\.? of items|vat\s*(no|reg)/i.test(l));
+    const values = hits.map(moneyOnLine).filter(v => v != null && v > 0);
+    if (values.length) { out.total = Math.max(...values); break; }
+  }
+  if (out.total == null) {
+    // No usable label -- fall back to the biggest money figure on the receipt.
+    const all = lines.map(moneyOnLine).filter(v => v != null && v > 0);
+    if (all.length) out.total = Math.max(...all);
+  }
+
+  // --- VAT: a labelled VAT amount, or derive it from a stated rate. ---
+  const vatLine = lines.find(l => /\bvat\b/i.test(l) && !/vat\s*(no|reg|number)/i.test(l) && /\d/.test(l));
+  if (vatLine) {
+    const v = moneyOnLine(vatLine);
+    if (v != null && out.total != null && v < out.total) out.vat = v;
+  }
+  if (out.vat == null && out.total != null && /\b(vat|v\.a\.t)\b/i.test(text)) {
+    const rate = text.match(/\b(\d{1,2}(?:\.\d)?)\s*%/);
+    const r = rate ? parseFloat(rate[1]) : 20;
+    if (r > 0 && r < 50) out.vat = Math.round((out.total - out.total / (1 + r / 100)) * 100) / 100;
+  }
+
+  // --- Date ---
+  const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+  const pad = n => String(n).padStart(2, "0");
+  const iso = (y, m, d) => {
+    if (y < 100) y += 2000;
+    const dt = new Date(y, m, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m || dt.getDate() !== d) return null;
+    if (dt > new Date(Date.now() + 86400000) || y < 2000) return null; // no future / nonsense dates
+    return `${y}-${pad(m + 1)}-${pad(d)}`;
+  };
+  let m;
+  if ((m = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/))) {
+    out.date = iso(+m[1], +m[2] - 1, +m[3]);
+  }
+  if (!out.date && (m = text.match(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\b/))) {
+    out.date = iso(+m[3], +m[2] - 1, +m[1]); // UK order: day first
+  }
+  if (!out.date && (m = text.match(/\b(\d{1,2})\s*(?:st|nd|rd|th)?\s*([A-Za-z]{3,9})\.?\s*(\d{2,4})\b/))) {
+    const mo = MONTHS[m[2].slice(0, 3).toLowerCase()];
+    if (mo != null) out.date = iso(+m[3], mo, +m[1]);
+  }
+
+  // --- Supplier: the first line near the top that reads like a shop name. ---
+  for (const line of lines.slice(0, 8)) {
+    const letters = (line.match(/[A-Za-z]/g) || []).length;
+    if (letters < 3) continue;
+    if (letters / line.length < 0.55) continue;                     // mostly digits = address/phone
+    if (/receipt|invoice|vat|tel|www\.|@|thank|customer copy|order|http/i.test(line)) continue;
+    if (/^\d/.test(line)) continue;                                  // street number
+    out.supplier = line.replace(/[^A-Za-z0-9&'.\- ]/g, "").trim().slice(0, 60);
+    if (out.supplier) break;
+  }
+
+  const haystack = (out.supplier || "") + "\n" + text.slice(0, 400);
+  for (const [pat, cat] of SUPPLIER_CATEGORIES) {
+    if (pat.test(haystack)) { out.category = cat; break; }
+  }
+  return out;
+}
+
+/* ============================== Init ============================== */
+(async function init() {
+  document.getElementById("expCategory").innerHTML = CATEGORIES.map(c => `<option>${c}</option>`).join("");
+  businessId = await getCurrentBusinessId();
+  if (!businessId) {
+    document.getElementById("summaryArea").innerHTML = `<div class="empty-note">Couldn't load your business account — try signing in again.</div>`;
+    return;
+  }
+  await loadAll();
+})();
+</script>
+</body>
+</html>

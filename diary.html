@@ -112,6 +112,23 @@
 .clock-number:hover { background: var(--mint); }
 .clock-number.selected { background: var(--teal); color: #fff; }
 .detail-row { font-size: 0.9rem; margin-bottom: 8px; }
+.detail-actions-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); margin: 16px 0 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.client-box { background: var(--mint); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-top: 18px; }
+.client-box h3 { font-family: "Poppins", sans-serif; font-size: 1.02rem; margin: 0 0 2px; color: var(--teal); }
+.client-box .cb-sub { font-size: 0.74rem; color: var(--ink-soft); margin-bottom: 10px; }
+.client-contact { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.client-contact a, .client-contact span.cc-row {
+  display: flex; align-items: flex-start; gap: 9px; font-size: 0.88rem; color: var(--ink);
+  text-decoration: none; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; word-break: break-word;
+}
+.client-contact a { color: var(--teal); font-weight: 600; }
+.client-contact a:active { filter: brightness(0.95); }
+.client-contact .cc-icon { flex-shrink: 0; font-size: 1rem; line-height: 1.3; }
+.client-notes { font-size: 0.82rem; color: var(--ink-soft); background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; white-space: pre-wrap; }
+.client-actions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.client-actions .btn { padding: 12px 8px; font-size: 0.82rem; width: 100%; text-align: center; }
+.client-actions .btn.full { grid-column: 1 / -1; }
 .detail-row strong { color: var(--ink-soft); font-weight: 700; display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
 </style>
 </head>
@@ -210,13 +227,19 @@
   <div class="modal-card">
     <h2 id="detailTitle">Event</h2>
     <div class="detail-row"><strong>When</strong><span id="detailWhen"></span></div>
-    <div class="detail-row" id="detailClientRow"><strong>Client</strong><span id="detailClient"></span></div>
     <div class="detail-row" id="detailLocationRow"><strong>Location</strong><a id="detailLocation" href="#" target="_blank" rel="noopener" style="color:var(--teal);"></a></div>
     <div class="detail-row" id="detailNotesRow"><strong>Notes</strong><span id="detailNotes"></span></div>
+
+    <div class="detail-actions-label">This event</div>
     <div class="modal-actions">
-      <button type="button" class="btn btn-ghost" id="detailCloseBtn">Close</button>
-      <button type="button" class="btn btn-ghost" id="detailEditBtn">Edit</button>
+      <button type="button" class="btn btn-primary" id="detailEditBtn">Edit event</button>
       <button type="button" class="btn btn-danger" id="detailDeleteBtn">Delete</button>
+    </div>
+
+    <div id="detailClientBox"></div>
+
+    <div class="modal-actions" style="margin-top:16px;">
+      <button type="button" class="btn btn-ghost" id="detailCloseBtn">Close</button>
     </div>
   </div>
 </div>
@@ -281,7 +304,7 @@ function toTimeInputValue(date) {
 function fmtTime(d) { return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }); }
 
 async function loadClientsIntoSelect() {
-  const { data } = await supabaseClient.from("clients").select("id,name,address").eq("business_id", businessId).order("name");
+  const { data } = await supabaseClient.from("clients").select("id,name,address,postcode,phone,email,notes").eq("business_id", businessId).order("name");
   allClients = data || [];
   const select = document.getElementById("clientSelect");
   select.innerHTML = `<option value="">-- No client (general job) --</option>` +
@@ -312,7 +335,7 @@ async function loadEvents() {
   const { start, end } = getRange();
   const { data, error } = await supabaseClient
     .from("diary_events")
-    .select("*, jobs(title, client_id, clients(name))")
+    .select("*, jobs(id, title, client_id, address, status, clients(id, name, address, postcode, phone, email, notes))")
     .eq("business_id", businessId)
     .gte("start_time", start.toISOString())
     .lt("start_time", end.toISOString())
@@ -464,25 +487,76 @@ function renderMonth(area) {
 
 let currentDetailEvent = null;
 
+/* The client panel is the point of the detail modal on a phone: standing on a doorstep you
+   want the number to ring, the address to navigate to, and one tap into raising the invoice
+   or certificate for THIS customer -- not a trip back out through the Clients list. */
+function clientPanelHtml(client, ev) {
+  if (!client) {
+    return `
+      <div class="client-box">
+        <h3>No customer linked</h3>
+        <div class="cb-sub">This is a general job. Use Edit event to attach a customer.</div>
+      </div>`;
+  }
+  const fullAddress = [client.address, client.postcode].filter(Boolean).join(", ");
+  const rows = [];
+  if (client.phone) {
+    const tel = client.phone.replace(/[^\d+]/g, "");
+    rows.push(`<a href="tel:${escapeHtml(tel)}"><span class="cc-icon">\u{1F4DE}</span><span>${escapeHtml(client.phone)}</span></a>`);
+  }
+  if (client.email) {
+    rows.push(`<a href="mailto:${escapeHtml(client.email)}"><span class="cc-icon">\u2709\uFE0F</span><span>${escapeHtml(client.email)}</span></a>`);
+  }
+  if (fullAddress) {
+    rows.push(`<a href="${escapeHtml(mapsDirectionsUrl(fullAddress))}" target="_blank" rel="noopener"><span class="cc-icon">\u{1F4CD}</span><span>${escapeHtml(fullAddress)}</span></a>`);
+  }
+  if (!rows.length) {
+    rows.push(`<span class="cc-row"><span class="cc-icon">\u2139\uFE0F</span><span>No phone, email or address on file.</span></span>`);
+  }
+  const jobStatus = ev && ev.jobs && ev.jobs.status ? ev.jobs.status : null;
+  const cid = encodeURIComponent(client.id);
+
+  return `
+    <div class="client-box">
+      <h3>${escapeHtml(client.name)}</h3>
+      <div class="cb-sub">Customer${jobStatus ? " \u00b7 job " + escapeHtml(jobStatus) : ""}</div>
+      <div class="client-contact">${rows.join("")}</div>
+      ${client.notes ? `<div class="client-notes">${escapeHtml(client.notes)}</div>` : ""}
+      <div class="client-actions">
+        <a class="btn btn-primary" href="invoices.html?client=${cid}">\u{1F9FE} New invoice</a>
+        <a class="btn btn-primary" href="certificates.html?client=${cid}">\u{1F4C4} New certificate</a>
+        <a class="btn btn-ghost" href="clients.html?client=${cid}">\u{1F465} Customer record</a>
+        <a class="btn btn-ghost" href="invoices.html?viewClient=${cid}">\u{1F4C2} Their invoices</a>
+        <a class="btn btn-ghost full" href="diary.html?client=${cid}">\u{1F4C5} Book another visit</a>
+      </div>
+    </div>`;
+}
+
 function openDetail(eventId) {
-  const ev = allEvents.find(e => e.id === eventId);
+  const ev = allEvents.find(e => e.id === eventId)
+    || (currentDetailEvent && currentDetailEvent.id === eventId ? currentDetailEvent : null);
   if (!ev) return;
   currentDetailEvent = ev;
-  const clientName = ev.jobs && ev.jobs.clients ? ev.jobs.clients.name : null;
   document.getElementById("detailTitle").textContent = ev.title;
   const start = new Date(ev.start_time);
   const end = ev.end_time ? new Date(ev.end_time) : null;
   document.getElementById("detailWhen").textContent =
     start.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) +
     `, ${fmtTime(start)}` + (end ? `–${fmtTime(end)}` : "");
-  document.getElementById("detailClientRow").classList.toggle("hidden", !clientName);
-  document.getElementById("detailClient").textContent = clientName || "";
   document.getElementById("detailLocationRow").classList.toggle("hidden", !ev.location);
   document.getElementById("detailLocation").textContent = ev.location || "";
   document.getElementById("detailLocation").href = ev.location ? mapsDirectionsUrl(ev.location) : "#";
   document.getElementById("detailNotesRow").classList.toggle("hidden", !ev.notes);
   document.getElementById("detailNotes").textContent = ev.notes || "";
   document.getElementById("detailDeleteBtn").dataset.eventId = ev.id;
+
+  // The embedded jobs.clients row only carries what the diary query asked for; prefer the
+  // fuller record out of allClients when we have it, and fall back to the embedded one.
+  const embedded = ev.jobs && ev.jobs.clients ? ev.jobs.clients : null;
+  const clientId = (embedded && embedded.id) || (ev.jobs ? ev.jobs.client_id : null);
+  const client = allClients.find(c => c.id === clientId) || embedded;
+  document.getElementById("detailClientBox").innerHTML = clientPanelHtml(client, ev);
+
   document.getElementById("detailModal").classList.remove("hidden");
 }
 function closeDetail() { document.getElementById("detailModal").classList.add("hidden"); }
@@ -598,13 +672,27 @@ document.getElementById("eventForm").addEventListener("submit", async (e) => {
 
     if (editingEventId) {
       const ev = allEvents.find(e => e.id === editingEventId) || currentDetailEvent;
-      const { error: jobUpdateError } = await supabaseClient
-        .from("jobs").update({ client_id: clientId, title, address: location }).eq("id", ev.job_id);
-      if (jobUpdateError) throw jobUpdateError;
+      const eventPatch = { title, start_time: startIso, end_time: endIso, location, notes };
+
+      if (ev && ev.job_id) {
+        const { error: jobUpdateError } = await supabaseClient
+          .from("jobs").update({ client_id: clientId, title, address: location }).eq("id", ev.job_id);
+        if (jobUpdateError) throw jobUpdateError;
+      } else {
+        // Events with a null job_id (anything imported, or created before the job link) blew up
+        // here: `.eq("id", null)` is a hard PostgREST error, so every Edit save failed. Back-fill
+        // a job for them instead of failing the save.
+        const { data: job, error: jobError } = await supabaseClient
+          .from("jobs")
+          .insert({ business_id: businessId, client_id: clientId, title, address: location, status: "booked" })
+          .select().single();
+        if (jobError) throw jobError;
+        eventPatch.job_id = job.id;
+      }
 
       const { error: eventUpdateError } = await supabaseClient
         .from("diary_events")
-        .update({ title, start_time: startIso, end_time: endIso, location, notes })
+        .update(eventPatch)
         .eq("id", editingEventId);
       if (eventUpdateError) throw eventUpdateError;
     } else {
@@ -762,10 +850,13 @@ document.getElementById("clockDoneBtn").addEventListener("click", () => {
   if (eventId) {
     const { data: ev, error } = await supabaseClient
       .from("diary_events")
-      .select("*, jobs(title, client_id, clients(name))")
+      .select("*, jobs(id, title, client_id, address, status, clients(id, name, address, postcode, phone, email, notes))")
       .eq("id", eventId)
       .single();
-    if (!error && ev) openModal(null, null, ev);
+    // Open the full detail view (customer info + actions), not the bare edit form -- the
+    // event may sit outside the currently loaded range, so seed currentDetailEvent first
+    // and let openDetail fall back to it.
+    if (!error && ev) { currentDetailEvent = ev; openDetail(ev.id); }
   }
 })();
 </script>

@@ -14,13 +14,14 @@ const supabaseClient = (supabaseReady && window.supabase)
 
 /* ============================== Nav ============================== */
 const NAV_ITEMS = [
-  { id: "dashboard", href: "dashboard.html", icon: "\u{1F3E0}", label: "Dashboard" },
+  { id: "dashboard", href: "dashboard.html", icon: "\u{1F3E0}", label: "Dashboard", short: "Home" },
   { id: "clients", href: "clients.html", icon: "\u{1F465}", label: "Clients" },
   { id: "jobs", href: "jobs.html", icon: "\u{1F6E0}\u{FE0F}", label: "Jobs" },
   { id: "diary", href: "diary.html", icon: "\u{1F4C5}", label: "Diary" },
-  { id: "certificates", href: "certificates.html", icon: "\u{1F4C4}", label: "Certificates" },
-  { id: "invoices", href: "invoices.html", icon: "\u{1F9FE}", label: "Invoices" },
-  { id: "settings", href: "settings.html", icon: "\u{2699}\u{FE0F}", label: "Settings" },
+  { id: "certificates", href: "certificates.html", icon: "\u{1F4C4}", label: "Certificates", short: "Certs" },
+  { id: "invoices", href: "invoices.html", icon: "\u{1F9FE}", label: "Invoices", short: "Invoice" },
+  { id: "accounts", href: "accounts.html", icon: "\u{1F4B7}", label: "Accounts", short: "Money" },
+  { id: "settings", href: "settings.html", icon: "\u{2699}\u{FE0F}", label: "Settings", short: "Set" },
 ];
 
 function brandMarkHtml() {
@@ -61,9 +62,10 @@ function renderNav(activeId) {
   if (topbarTarget) topbarTarget.innerHTML = brandMarkHtml();
 
   if (tabBarTarget) {
+    // Eight tabs across a phone leaves ~44px each, so the bottom bar uses the short labels.
     const tabItems = NAV_ITEMS.map(item => `
       <a class="nav-link${item.id === activeId ? " active" : ""}" href="${item.href}">
-        <span class="nav-icon">${item.icon}</span><span>${item.label}</span>
+        <span class="nav-icon">${item.icon}</span><span>${item.short || item.label}</span>
       </a>`).join("");
     tabBarTarget.innerHTML = `<div class="tab-bar-row">${tabItems}</div>`;
   }

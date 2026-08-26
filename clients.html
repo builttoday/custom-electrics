@@ -362,7 +362,11 @@ document.getElementById("emailForm").addEventListener("submit", async (e) => {
   }
 });
 
-loadClients();
+loadClients().then(() => {
+  // Deep link in from the diary's customer panel: ?client=<id> opens that record for editing.
+  const id = new URLSearchParams(window.location.search).get("client");
+  if (id) openModal(id);
+});
 </script>
 </body>
 </html>

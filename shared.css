@@ -182,3 +182,22 @@ a.stat-card:active { transform: translateY(0); }
   cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
 .attachment-remove:hover { background: var(--danger); }
+
+/* ---------- Modals on mobile ----------
+   Every page defines its own .modal-backdrop/.modal-card (page <style> blocks load after
+   this file, so a bare `.modal-card` rule here would lose the cascade) -- these use the
+   two-class descendant form deliberately so they win on specificity.
+   The bug this fixes: .modal-actions is a non-wrapping flex row, so on a phone the later
+   buttons (Edit, Delete, Send) were pushed past the card's right edge and untappable. */
+@media (max-width: 860px) {
+  .modal-backdrop { padding: 10px; align-items: flex-start; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .modal-backdrop .modal-card { padding: 18px 16px; max-height: none; margin: auto 0; }
+  .modal-backdrop .modal-actions { flex-wrap: wrap; gap: 8px; justify-content: stretch; }
+  .modal-backdrop .modal-actions .btn { flex: 1 1 132px; padding: 12px 10px; }
+  .modal-backdrop .field-row, .modal-backdrop .time-row { flex-direction: column; gap: 0; }
+}
+
+/* Eight tabs across a phone leaves ~44px each -- shrink the label and stop long words
+   ("Invoices", "Settings") spilling out of their column. */
+.tab-bar .nav-link { font-size: 0.6rem; letter-spacing: -0.01em; min-width: 0; overflow: hidden; }
+.tab-bar .nav-link > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

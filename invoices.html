@@ -742,6 +742,26 @@ document.getElementById("saveAndEmailBtn").addEventListener("click", async () =>
   businessBankDetails = business ? business.bank_details : null;
   await loadClients();
   await loadInvoices();
+
+  /* Deep links in from the diary's customer panel:
+       ?client=<id>     -> straight into a new invoice with that customer preselected
+       ?viewClient=<id> -> just filter the list down to that customer's invoices */
+  const params = new URLSearchParams(window.location.search);
+  const viewClient = params.get("viewClient");
+  if (viewClient) {
+    const c = allClients.find(x => x.id === viewClient);
+    if (c) {
+      document.getElementById("invoiceSearch").value = c.name;
+      applyInvoiceFilter();
+    }
+  }
+  const preselect = params.get("client");
+  if (preselect) {
+    openModal(null);
+    const select = document.getElementById("clientSelect");
+    select.value = preselect;
+    select.dispatchEvent(new Event("change"));
+  }
 })();
 </script>
 </body>

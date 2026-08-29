@@ -59,6 +59,8 @@
 
       <div class="client-toolbar">
         <input type="search" id="searchInput" placeholder="Search clients by name, address, or phone...">
+        <button class="btn btn-ghost" id="writeEmailBtn">✉️ Write email</button>
+        <button class="btn btn-accent" id="bulkEmailBtn">📣 Email several</button>
         <button class="btn btn-primary" id="addClientBtn">+ Add client</button>
       </div>
 
@@ -99,6 +101,10 @@
         <label for="notes">Notes</label>
         <textarea id="notes" placeholder="Access notes, preferred contact times, anything worth remembering..."></textarea>
       </div>
+      <label style="display:flex;gap:10px;align-items:center;margin-bottom:14px;cursor:pointer;">
+        <input type="checkbox" id="optOut" style="width:auto;accent-color:var(--teal);width:18px;height:18px;">
+        <span style="font-size:0.85rem;">Don't send this client marketing emails</span>
+      </label>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
         <button type="submit" class="btn btn-primary" id="saveBtn">Save client</button>
@@ -230,6 +236,19 @@ async function loadClients() {
     year: String(new Date().getFullYear()),
   }), ["client", "trade"]);
 
+  const { error: optOutErr } = await supabaseClient
+    .from("clients").select("marketing_opt_out").eq("business_id", businessId).limit(1);
+  optOutReady = !optOutErr;
+  document.getElementById("optOut").closest("label").style.display = optOutReady ? "flex" : "none";
+
+  if (!composer) {
+    composer = createEmailComposer({
+      audiences: ["client", "trade"],
+      getBusinessName: () => businessName,
+      logColumn: "client_id",
+    });
+  }
+
   const { data, error } = await supabaseClient.from("clients").select("*").eq("business_id", businessId).order("name");
   if (error) {
     document.getElementById("clientList").innerHTML = `<div class="empty-note">Couldn't load clients: ${escapeHtml(error.message)}</div>`;
@@ -267,6 +286,7 @@ function openModal(clientId) {
       document.getElementById("phone").value = c.phone || "";
       document.getElementById("email").value = c.email || "";
       document.getElementById("notes").value = c.notes || "";
+      document.getElementById("optOut").checked = !!c.marketing_opt_out;
     }
   }
   modal.classList.remove("hidden");
@@ -295,6 +315,7 @@ document.getElementById("clientForm").addEventListener("submit", async (e) => {
     email: document.getElementById("email").value.trim() || null,
     notes: document.getElementById("notes").value.trim() || null,
   };
+  if (optOutReady) record.marketing_opt_out = document.getElementById("optOut").checked;
   saveBtn.disabled = true; saveBtn.textContent = "Saving...";
   status.style.color = "var(--ink-soft)"; status.textContent = "";
   try {
@@ -379,6 +400,32 @@ document.getElementById("emailForm").addEventListener("submit", async (e) => {
   } finally {
     sendBtn.disabled = false; sendBtn.textContent = "Send";
   }
+});
+
+/* ============================== Composer (write to anyone / bulk) ============================== */
+let composer = null;
+/* False until custom-electrics-add-marketing-optout.sql has been run. Without this guard the
+   column would go into every save and PostgREST would reject the whole update, breaking
+   client editing for anyone who deployed the page before running the migration. */
+let optOutReady = false;
+
+function mailableClients() {
+  // Anyone with no address, or who has asked not to be marketed to, is excluded here rather
+  // than merely unticked -- an opt-out that can be re-ticked by hand is not an opt-out.
+  return allClients.filter(c => c.email && !c.marketing_opt_out);
+}
+
+document.getElementById("writeEmailBtn").addEventListener("click", () => {
+  if (composer) composer.openSingle({});
+});
+document.getElementById("bulkEmailBtn").addEventListener("click", () => {
+  if (!composer) return;
+  const people = mailableClients().map(c => ({ id: c.id, name: c.name, email: c.email }));
+  if (!people.length) {
+    alert("Nobody to send to yet -- no client has an email address on file that hasn't opted out.");
+    return;
+  }
+  composer.openBulk(people, allClients.length - people.length);
 });
 
 loadClients().then(() => {

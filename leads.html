@@ -97,6 +97,8 @@
         <input type="search" id="searchInput" placeholder="Search leads by name, address, source or notes...">
         <select id="sourceFilter"><option value="">All sources</option></select>
         <select id="serviceFilter"><option value="">All services</option></select>
+        <button class="btn btn-ghost" id="writeEmailBtn">✉️ Write email</button>
+        <button class="btn btn-accent" id="bulkEmailBtn">📣 Email several</button>
         <button class="btn btn-primary" id="addLeadBtn">+ Add lead</button>
       </div>
 
@@ -204,6 +206,10 @@
         <label for="notes">Notes</label>
         <textarea id="notes" placeholder="What they asked for, what you said, access notes..."></textarea>
       </div>
+      <label style="display:flex;gap:10px;align-items:center;margin-bottom:14px;cursor:pointer;">
+        <input type="checkbox" id="optOut" style="accent-color:var(--teal);width:18px;height:18px;">
+        <span style="font-size:0.85rem;">Don't send this lead marketing emails</span>
+      </label>
       <div class="modal-actions">
         <button type="button" class="btn btn-danger hidden" id="deleteLeadBtn">Delete</button>
         <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
@@ -447,18 +453,21 @@ function renderSourceTable() {
     </table>`;
 }
 
+let visibleLeads = [];
+
 function applyFilters() {
   const q = document.getElementById("searchInput").value.trim().toLowerCase();
   const src = document.getElementById("sourceFilter").value;
   const svc = document.getElementById("serviceFilter").value;
-  renderLeads(allLeads.filter(l => {
+  visibleLeads = allLeads.filter(l => {
     if (src && l.source !== src) return false;
     if (svc && l.service !== svc) return false;
     if (!q) return true;
     const hay = [l.name, l.address, l.postcode, l.phone, l.email, l.source, l.service, l.notes]
       .filter(Boolean).join(" ").toLowerCase();
     return q.split(/\s+/).every(term => hay.includes(term));
-  }));
+  });
+  renderLeads(visibleLeads);
 }
 
 /* ============================== Data ============================== */
@@ -524,6 +533,7 @@ function openLeadModal(leadId) {
     document.getElementById("followUpDate").value = lead.follow_up_date || "";
     document.getElementById("lostReason").value = lead.lost_reason || "";
     document.getElementById("notes").value = lead.notes || "";
+    document.getElementById("optOut").checked = !!lead.marketing_opt_out;
   } else {
     document.getElementById("source").value = "Other";
     document.getElementById("service").value = "Rewire";
@@ -579,6 +589,7 @@ document.getElementById("leadForm").addEventListener("submit", async (e) => {
     lost_reason: newStatus === "lost" ? (document.getElementById("lostReason").value.trim() || null) : null,
     notes: document.getElementById("notes").value.trim() || null,
   };
+  if (optOutReady) record.marketing_opt_out = document.getElementById("optOut").checked;
   // closed_at is stamped on the transition into won/lost and cleared if it's reopened, so
   // "won this month" measures when the job actually landed, not when the row was created.
   const wasClosed = existing && !OPEN_STATUSES.includes(existing.status);
@@ -762,6 +773,30 @@ document.getElementById("emailForm").addEventListener("submit", async (e) => {
   }
 });
 
+/* ============================== Composer (write to anyone / bulk) ============================== */
+let composer = null;
+/* See the same flag in clients.html -- guards against the opt-out migration not being run. */
+let optOutReady = false;
+
+document.getElementById("writeEmailBtn").addEventListener("click", () => {
+  if (composer) composer.openSingle({});
+});
+
+document.getElementById("bulkEmailBtn").addEventListener("click", () => {
+  if (!composer) return;
+  // Deliberately built from the FILTERED view, not every lead on file -- that makes the
+  // source and service dropdowns double as the audience picker, so "everyone who enquired
+  // about a rewire and hasn't been quoted" is three clicks rather than a manual tick-hunt.
+  const people = visibleLeads
+    .filter(l => l.email && !l.marketing_opt_out)
+    .map(l => ({ id: l.id, name: l.name, email: l.email, service: l.service, amount: leadValue(l) ? money(leadValue(l)) : "" }));
+  if (!people.length) {
+    alert("Nobody to send to in this view -- no lead here has an email address that hasn't opted out. Try clearing the filters.");
+    return;
+  }
+  composer.openBulk(people, visibleLeads.length - people.length);
+});
+
 /* ============================== Init ============================== */
 document.getElementById("searchInput").addEventListener("input", applyFilters);
 document.getElementById("sourceFilter").addEventListener("change", applyFilters);
@@ -784,6 +819,18 @@ document.getElementById("serviceFilter").addEventListener("change", applyFilters
 
   wireTemplatePicker("emailTemplate", "emailSubject", "emailBody",
     () => templateValues(emailingLead || {}), ["lead", "client"]);
+
+  const { error: optOutErr } = await supabaseClient
+    .from("leads").select("marketing_opt_out").eq("business_id", businessId).limit(1);
+  optOutReady = !optOutErr;
+  document.getElementById("optOut").closest("label").style.display = optOutReady ? "flex" : "none";
+
+  composer = createEmailComposer({
+    audiences: ["lead", "client", "trade"],
+    getBusinessName: () => businessName,
+    logColumn: "lead_id",
+    onFinished: () => loadLeads(),
+  });
 
   await loadLeads();
 })();

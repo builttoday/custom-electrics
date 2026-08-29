@@ -237,3 +237,14 @@ a.stat-card:active { transform: translateY(0); }
 .ss-none { padding: 16px 13px; font-size: 0.85rem; color: var(--ink-soft); text-align: center; }
 .ss-trigger.ss-invalid { border-color: var(--danger); }
 .ss-error { font-size: 0.78rem; color: var(--danger); font-weight: 600; margin-top: 6px; }
+
+/* ---------- Email composer (createEmailComposer in shared.js) ----------
+   The composer injects its own modal into <body>, so unlike every other modal in this app it
+   has no page <style> block above it in the cascade -- these rules are the only ones it gets,
+   and they have to carry the backdrop/card themselves. */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(20,40,45,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.modal-backdrop.hidden { display: none !important; }
+.modal-backdrop > .modal-card { background: var(--surface); border-radius: var(--radius); padding: 26px; width: 100%; max-width: 520px; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+.compose-note { font-size: 0.78rem; color: var(--ink-soft); margin: -6px 0 14px; }
+#composeList label:last-child { border-bottom: none; }
+#composeList input[type="checkbox"] { accent-color: var(--teal); width: 18px; height: 18px; }

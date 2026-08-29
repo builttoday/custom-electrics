@@ -563,6 +563,301 @@ function wireTemplatePicker(selectId, subjectId, bodyId, getValues, audiences) {
   });
 }
 
+/* ============================== Sending mail ==============================
+   One wrapper round the send-email Edge Function, because supabase-js's default error for a
+   non-2xx reply is the useless "non-2xx status code" -- the real reason (a Resend rejection,
+   an unverified domain, a bad address) is only in the response body it attaches as .context.
+   Both email modals used to unwrap that separately; now they don't. */
+async function sendEmailViaFunction(to, subject, text) {
+  const { data, error } = await supabaseClient.functions.invoke("send-email", {
+    body: { to, subject, text },
+  });
+  if (error) {
+    let detail = error.message;
+    try {
+      if (error.context && typeof error.context.json === "function") {
+        const parsed = await error.context.json();
+        if (parsed && parsed.error) detail = parsed.error;
+      }
+    } catch (_) { /* body wasn't JSON or was already consumed -- keep error.message */ }
+    throw new Error(detail);
+  }
+  if (data && data.error) throw new Error(data.error);
+}
+
+/* ============================== Email composer (single + bulk) ==============================
+   Injected by JS rather than written into each page's markup, so the two pages that use it
+   don't carry ~90 duplicated lines of modal HTML between them.
+
+   Bulk sending goes one recipient at a time from the browser rather than handing Resend a
+   list of addresses, for three reasons that all matter more than the extra wall-clock time:
+
+     - Each message is merged individually, so it opens "Hi Dave" rather than announcing
+       itself as a mailshot to forty people.
+     - Nobody sees anyone else's address. A `to:` array would expose the customer list to
+       every recipient -- a genuine data-protection incident, not just a faux pas.
+     - One failure (a dead address, a bounce) doesn't take the rest of the run down with it.
+
+   Sends are spaced by SEND_GAP_MS because Resend's default limit is 2 requests/second;
+   firing a whole list off at once gets the back half rejected with 429s. */
+const SEND_GAP_MS = 600;
+
+function createEmailComposer(options) {
+  const audiences = options.audiences || null;
+  const getBusinessName = options.getBusinessName || (() => "Custom Electrics");
+  const logColumn = options.logColumn || null;   // "client_id" | "lead_id" | null
+  const onFinished = options.onFinished || (() => {});
+
+  let mode = "single";       // "single" | "bulk"
+  let recipients = [];       // [{ id, name, email }]
+
+  const wrap = document.createElement("div");
+  wrap.className = "modal-backdrop hidden";
+  wrap.innerHTML = `
+    <div class="modal-card">
+      <h2 id="composeTitle">Write email</h2>
+      <p class="form-status" id="composeStatus"></p>
+
+      <div class="field" id="composeToField">
+        <label for="composeTo">To</label>
+        <input type="email" id="composeTo" placeholder="name@example.com">
+      </div>
+
+      <div id="composeRecipients" class="hidden">
+        <div class="field" style="margin-bottom:6px;">
+          <label>Who it goes to <span id="composeCount" style="color:var(--teal);"></span></label>
+          <input type="search" id="composeFilter" placeholder="Filter this list...">
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button type="button" class="btn btn-ghost" id="composeAll" style="padding:6px 12px;font-size:0.78rem;">Select all</button>
+          <button type="button" class="btn btn-ghost" id="composeNone" style="padding:6px 12px;font-size:0.78rem;">Select none</button>
+        </div>
+        <div id="composeList" style="max-height:200px;overflow-y:auto;border:1.5px solid var(--line);border-radius:10px;margin-bottom:14px;"></div>
+        <p class="compose-note" id="composeExcluded"></p>
+      </div>
+
+      <div class="field">
+        <label for="composeTemplate">Start from a template</label>
+        <select id="composeTemplate"></select>
+      </div>
+      <div class="field">
+        <label for="composeSubject">Subject *</label>
+        <input type="text" id="composeSubject">
+      </div>
+      <div class="field">
+        <label for="composeBody">Message *</label>
+        <textarea id="composeBody" style="min-height:220px;"></textarea>
+      </div>
+      <p class="compose-note" id="composeMergeNote"></p>
+
+      <div id="composeProgress" class="hidden" style="margin-bottom:14px;">
+        <div style="height:8px;background:var(--mint);border-radius:999px;overflow:hidden;">
+          <div id="composeBar" style="height:100%;width:0%;background:var(--teal);transition:width 0.2s ease;"></div>
+        </div>
+        <p class="compose-note" id="composeProgressText" style="margin-top:6px;"></p>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="composeCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="composeSend">Send</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+
+  const $ = (id) => wrap.querySelector("#" + id);
+  const listEl = $("composeList");
+  let sending = false;
+
+  const templateList = audiences
+    ? MARKETING_TEMPLATES.filter(t => audiences.includes(t.audience))
+    : MARKETING_TEMPLATES;
+  $("composeTemplate").innerHTML = `<option value="">-- Write from scratch --</option>` +
+    templateList.map(t => `<option value="${t.id}">${escapeForComposer(t.label)}</option>`).join("");
+
+  function selected() {
+    return [...listEl.querySelectorAll("input[type=checkbox]:checked")]
+      .map(cb => recipients.find(r => r.id === cb.value)).filter(Boolean);
+  }
+
+  function renderCount() {
+    $("composeCount").textContent = mode === "bulk" ? `— ${selected().length} selected` : "";
+  }
+
+  function renderList() {
+    const q = $("composeFilter").value.trim().toLowerCase();
+    const shown = recipients.filter(r =>
+      !q || (r.name + " " + r.email).toLowerCase().includes(q));
+    if (!shown.length) {
+      listEl.innerHTML = `<p class="compose-note" style="padding:14px;margin:0;">Nobody matches that.</p>`;
+      return;
+    }
+    // Checked state is rebuilt from `r.checked` rather than left to the DOM, so filtering the
+    // list doesn't silently deselect the people who scrolled out of view.
+    listEl.innerHTML = shown.map(r => `
+      <label style="display:flex;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer;">
+        <input type="checkbox" value="${r.id}" ${r.checked ? "checked" : ""} style="width:auto;flex-shrink:0;">
+        <span style="min-width:0;overflow:hidden;">
+          <span style="font-weight:600;">${escapeForComposer(r.name)}</span>
+          <span style="color:var(--ink-soft);font-size:0.8rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeForComposer(r.email)}</span>
+        </span>
+      </label>`).join("");
+    listEl.querySelectorAll("input[type=checkbox]").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const r = recipients.find(x => x.id === cb.value);
+        if (r) r.checked = cb.checked;
+        renderCount();
+      });
+    });
+    renderCount();
+  }
+
+  function valuesFor(r) {
+    return {
+      name: r ? r.name : "",
+      first_name: r ? firstNameFrom(r.name) : "",
+      business: getBusinessName(),
+      service: r && r.service ? String(r.service).toLowerCase() : "",
+      amount: r && r.amount ? r.amount : "",
+      year: String(new Date().getFullYear()),
+    };
+  }
+
+  function reset() {
+    $("composeStatus").textContent = "";
+    $("composeSubject").value = "";
+    $("composeBody").value = "";
+    $("composeTemplate").value = "";
+    $("composeTo").value = "";
+    $("composeFilter").value = "";
+    $("composeProgress").classList.add("hidden");
+    $("composeBar").style.width = "0%";
+    $("composeSend").disabled = false;
+    $("composeSend").textContent = "Send";
+  }
+
+  $("composeTemplate").addEventListener("change", () => {
+    const tpl = templateList.find(t => t.id === $("composeTemplate").value);
+    if (!tpl) return;
+    // In bulk the raw tokens are left in place and merged per recipient at send time -- what
+    // the user edits here is the master copy, not one person's version of it.
+    const sample = mode === "bulk" ? null : recipients[0];
+    $("composeSubject").value = mode === "bulk" ? tpl.subject : fillTemplate(tpl.subject, valuesFor(sample));
+    $("composeBody").value = mode === "bulk" ? tpl.body : fillTemplate(tpl.body, valuesFor(sample));
+  });
+
+  $("composeFilter").addEventListener("input", renderList);
+  $("composeAll").addEventListener("click", () => { recipients.forEach(r => r.checked = true); renderList(); });
+  $("composeNone").addEventListener("click", () => { recipients.forEach(r => r.checked = false); renderList(); });
+  $("composeCancel").addEventListener("click", () => {
+    if (sending && !confirm("Emails are still going out. Close anyway? Whatever has already sent has sent.")) return;
+    wrap.classList.add("hidden");
+  });
+
+  $("composeSend").addEventListener("click", async () => {
+    const subject = $("composeSubject").value.trim();
+    const body = $("composeBody").value.trim();
+    const status = $("composeStatus");
+    status.style.color = "var(--danger)";
+    if (!subject || !body) { status.textContent = "Give it a subject and a message first."; return; }
+
+    let targets;
+    if (mode === "single") {
+      const to = $("composeTo").value.trim();
+      if (!to || !to.includes("@")) { status.textContent = "Who is this going to?"; return; }
+      targets = [{ id: null, name: to.split("@")[0], email: to }];
+    } else {
+      targets = selected();
+      if (!targets.length) { status.textContent = "Tick at least one person."; return; }
+      if (!confirm(`Send this to ${targets.length} ${targets.length === 1 ? "person" : "people"}? Each one gets their own copy — nobody sees anyone else's address.`)) return;
+      if (targets.length > 100 && !confirm(`That's ${targets.length} emails. Resend's free tier caps at 100 a day, so the tail end may be rejected. Carry on?`)) return;
+    }
+
+    sending = true;
+    status.style.color = "var(--ink-soft)";
+    status.textContent = "";
+    $("composeSend").disabled = true;
+    $("composeSend").textContent = "Sending...";
+    $("composeProgress").classList.remove("hidden");
+
+    const failures = [];
+    let sent = 0;
+    for (let i = 0; i < targets.length; i++) {
+      const r = targets[i];
+      const vals = valuesFor(r);
+      const mergedSubject = fillTemplate(subject, vals);
+      const mergedBody = fillTemplate(body, vals);
+      $("composeProgressText").textContent = `Sending ${i + 1} of ${targets.length} — ${r.email}`;
+      try {
+        await sendEmailViaFunction(r.email, mergedSubject, mergedBody);
+        sent++;
+        const log = {
+          business_id: _cachedBusinessId, to_address: r.email,
+          subject: mergedSubject, body: mergedBody,
+        };
+        if (logColumn && r.id) log[logColumn] = r.id;
+        await supabaseClient.from("emails_log").insert(log);
+      } catch (err) {
+        failures.push(`${r.email}: ${err.message}`);
+      }
+      $("composeBar").style.width = `${Math.round(((i + 1) / targets.length) * 100)}%`;
+      // Resend allows 2/second; spacing the calls is cheaper than handling a wave of 429s.
+      if (i < targets.length - 1) await new Promise(res => setTimeout(res, SEND_GAP_MS));
+    }
+
+    sending = false;
+    $("composeSend").disabled = false;
+    $("composeSend").textContent = "Send";
+    $("composeProgressText").textContent = `Done — ${sent} sent${failures.length ? `, ${failures.length} failed` : ""}.`;
+
+    if (failures.length) {
+      status.style.color = "var(--danger)";
+      // Listing the addresses that bounced, not just a count -- a bare "3 failed" leaves the
+      // user with no idea who to chase by hand.
+      status.textContent = "Didn't send to: " + failures.slice(0, 5).join(" | ") +
+        (failures.length > 5 ? ` (and ${failures.length - 5} more)` : "");
+    } else {
+      wrap.classList.add("hidden");
+    }
+    onFinished({ sent, failed: failures.length });
+  });
+
+  return {
+    openSingle(prefill) {
+      mode = "single";
+      recipients = [];
+      reset();
+      $("composeTitle").textContent = "Write email";
+      $("composeToField").classList.remove("hidden");
+      $("composeRecipients").classList.add("hidden");
+      $("composeMergeNote").textContent = "Templates are filled in for whoever you're writing to. Read it before sending.";
+      if (prefill && prefill.to) $("composeTo").value = prefill.to;
+      wrap.classList.remove("hidden");
+      $("composeTo").focus();
+    },
+    openBulk(people, excludedCount) {
+      mode = "bulk";
+      recipients = people.map(p => ({ ...p, checked: true }));
+      reset();
+      $("composeTitle").textContent = "Send to several people";
+      $("composeToField").classList.add("hidden");
+      $("composeRecipients").classList.remove("hidden");
+      $("composeMergeNote").textContent =
+        "Each person gets their own copy with {first_name} filled in for them. Leave the braces alone and they'll merge; type over them and everyone gets the same words.";
+      $("composeExcluded").textContent = excludedCount
+        ? `${excludedCount} left out — no email address on file, or they've opted out of marketing.`
+        : "";
+      renderList();
+      wrap.classList.remove("hidden");
+    },
+  };
+}
+
+/* The composer builds its own markup, so it needs escaping without depending on whichever
+   page happens to have defined an escapeHtml() of its own. */
+function escapeForComposer(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
 /* ============================== Init (call on every authenticated page) ============================== */
 function initAppShell(activeId) {
   renderNav(activeId);

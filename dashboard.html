@@ -29,6 +29,7 @@
       </div>
 
       <div class="stat-grid">
+        <a class="stat-card" href="leads.html"><div class="stat-label">Leads to chase</div><div class="stat-value" id="statLeads">--</div></a>
         <a class="stat-card" href="jobs.html"><div class="stat-label">Active jobs</div><div class="stat-value" id="statJobs">--</div></a>
         <a class="stat-card" href="diary.html"><div class="stat-label">This week's diary</div><div class="stat-value" id="statDiary">--</div></a>
         <a class="stat-card" href="clients.html"><div class="stat-label">Total clients</div><div class="stat-value" id="statClients">--</div></a>
@@ -80,7 +81,7 @@ async function loadDashboard() {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 7);
 
-  const [jobsRes, clientsRes, certsRes, diaryRes] = await Promise.all([
+  const [jobsRes, clientsRes, certsRes, diaryRes, leadsRes] = await Promise.all([
     supabaseClient.from("jobs").select("id", { count: "exact", head: true })
       .eq("business_id", businessId).not("status", "in", "(completed,cancelled)"),
     supabaseClient.from("clients").select("id", { count: "exact", head: true }).eq("business_id", businessId),
@@ -90,7 +91,21 @@ async function loadDashboard() {
       .gte("start_time", weekStart.toISOString())
       .lt("start_time", weekEnd.toISOString())
       .order("start_time"),
+    // "Needs chasing" is a two-part rule (see needsChasing() in leads.html), so the open
+    // leads come back raw and are counted here rather than being squeezed into a filter.
+    supabaseClient.from("leads").select("status, follow_up_date")
+      .eq("business_id", businessId).in("status", ["new", "contacted", "quoted"]),
   ]);
+
+  // A dash, not a zero, while custom-electrics-add-leads.sql is still unrun -- "0 to chase"
+  // would read as good news when it actually means the table isn't there.
+  if (leadsRes.error) {
+    document.getElementById("statLeads").textContent = "--";
+  } else {
+    const todayIso = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
+    document.getElementById("statLeads").textContent = (leadsRes.data || []).filter(l =>
+      l.follow_up_date ? l.follow_up_date <= todayIso : l.status === "new").length;
+  }
 
   document.getElementById("statJobs").textContent = jobsRes.count ?? "--";
   document.getElementById("statClients").textContent = clientsRes.count ?? "--";

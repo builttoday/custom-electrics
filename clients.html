@@ -118,6 +118,10 @@
         <div class="readonly-fill" id="emailTo" style="background:var(--mint);border:1.5px dashed var(--line);border-radius:10px;padding:11px 13px;font-size:0.88rem;color:var(--ink-soft);"></div>
       </div>
       <div class="field">
+        <label for="emailTemplate">Start from a template</label>
+        <select id="emailTemplate"></select>
+      </div>
+      <div class="field">
         <label for="emailSubject">Subject *</label>
         <input type="text" id="emailSubject" required>
       </div>
@@ -139,6 +143,8 @@ initAppShell("clients");
 
 let allClients = [];
 let businessId = null;
+let businessName = "Custom Electrics";
+let emailingClient = null;
 
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -213,6 +219,17 @@ async function loadClients() {
     document.getElementById("clientList").innerHTML = `<div class="empty-note">Couldn't load your business account -- try signing in again.</div>`;
     return;
   }
+  const { data: biz } = await supabaseClient.from("businesses").select("name").eq("id", businessId).single();
+  if (biz && biz.name) businessName = biz.name;
+  // Trade templates are offered here too -- letting and estate agents get filed as clients
+  // once they're on the books, and they're the contacts worth introducing yourself to.
+  wireTemplatePicker("emailTemplate", "emailSubject", "emailBody", () => ({
+    name: emailingClient ? emailingClient.name : "",
+    first_name: emailingClient ? firstNameFrom(emailingClient.name) : "",
+    business: businessName,
+    year: String(new Date().getFullYear()),
+  }), ["client", "trade"]);
+
   const { data, error } = await supabaseClient.from("clients").select("*").eq("business_id", businessId).order("name");
   if (error) {
     document.getElementById("clientList").innerHTML = `<div class="empty-note">Couldn't load clients: ${escapeHtml(error.message)}</div>`;
@@ -309,10 +326,12 @@ async function deleteClient(id) {
 function openEmailModal(clientId) {
   const client = allClients.find(c => c.id === clientId);
   if (!client) return;
+  emailingClient = client;
   document.getElementById("emailForm").reset();
   document.getElementById("emailStatus").textContent = "";
   document.getElementById("emailClientId").value = clientId;
   document.getElementById("emailTo").textContent = `${client.name} <${client.email}>`;
+  document.getElementById("emailTemplate").value = "";
   document.getElementById("emailModal").classList.remove("hidden");
 }
 function closeEmailModal() { document.getElementById("emailModal").classList.add("hidden"); }

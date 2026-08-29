@@ -197,7 +197,7 @@ a.stat-card:active { transform: translateY(0); }
   .modal-backdrop .field-row, .modal-backdrop .time-row { flex-direction: column; gap: 0; }
 }
 
-/* Eight tabs across a phone leaves ~44px each -- shrink the label and stop long words
+/* Nine tabs across a phone leaves ~39px each -- shrink the label and stop long words
    ("Invoices", "Settings") spilling out of their column. */
 .tab-bar .nav-link { font-size: 0.6rem; letter-spacing: -0.01em; min-width: 0; overflow: hidden; }
 .tab-bar .nav-link > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

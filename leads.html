@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leads — CRM</title>
+<meta name="theme-color" content="#1E4E54">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='47' fill='%231E4E54' stroke='%23E2915C' stroke-width='6'/%3E%3Cpath d='M56 18 26 56h24l-4 26 30-38H52l4-26Z' fill='%23EAF3F1'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+.page-content.wide { max-width: 1500px; }
+.lead-toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.lead-toolbar input[type="search"] { flex: 1; min-width: 200px; }
+.lead-toolbar select, .lead-toolbar input[type="search"] {
+  background: var(--surface); border: 1.5px solid var(--line); color: var(--ink);
+  border-radius: 10px; padding: 11px 13px; font-family: inherit; font-size: 16px;
+}
+.stage-heading {
+  font-family: "Poppins", sans-serif; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--teal); margin: 18px 2px 6px; display: flex; gap: 8px; align-items: baseline;
+}
+.stage-heading .count { color: var(--ink-soft); font-weight: 600; letter-spacing: 0; text-transform: none; font-size: 0.78rem; }
+.lead-list { display: flex; flex-direction: column; gap: 6px; }
+.lead-row {
+  display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 14px; box-shadow: var(--shadow); flex-wrap: wrap; overflow: hidden;
+}
+.lead-row.overdue { border-left: 4px solid var(--danger); }
+.lead-row .name-col { font-weight: 700; width: 170px; flex-shrink: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lead-row .service-col { width: 150px; flex-shrink: 0; font-size: 0.85rem; }
+.lead-row .source-col { width: 130px; flex-shrink: 0; font-size: 0.8rem; color: var(--ink-soft); }
+.lead-row .value-col { width: 90px; flex-shrink: 0; font-size: 0.85rem; font-weight: 600; text-align: right; }
+.lead-row .chase-col { font-size: 0.8rem; color: var(--ink-soft); white-space: nowrap; }
+.lead-row .chase-col.due { color: var(--danger); font-weight: 700; }
+.lead-row .contact-col { display: flex; gap: 10px; font-size: 0.82rem; color: var(--ink-soft); min-width: 0; flex-wrap: wrap; }
+.lead-row .contact-col a { color: inherit; text-decoration: none; }
+.lead-row .contact-col a:hover { text-decoration: underline; color: var(--teal); }
+.lead-row .notes-col { flex-basis: 100%; font-size: 0.8rem; color: var(--ink-soft); padding-top: 6px; margin-top: 4px; border-top: 1px solid var(--line); white-space: pre-wrap; }
+.lead-actions { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; flex-wrap: wrap; }
+.lead-actions .btn { padding: 7px 10px; font-size: 0.76rem; }
+.badge.new { background: var(--orange-soft); color: var(--orange); }
+.badge.contacted { background: var(--mint); color: var(--teal); }
+.badge.quoted { background: var(--good-soft); color: var(--good); }
+.badge.won { background: var(--good-soft); color: var(--good); }
+.badge.lost { background: var(--danger-soft); color: var(--danger); }
+.source-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.source-table th, .source-table td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.source-table th:first-child, .source-table td:first-child { text-align: left; }
+.source-table th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+.source-table tfoot td { font-weight: 700; border-bottom: none; }
+.source-scroll { overflow-x: auto; }
+.pos { color: var(--good); font-weight: 700; }
+.neg { color: var(--danger); font-weight: 700; }
+.archived-section summary::-webkit-details-marker { display: none; }
+.archived-section summary::before { content: "▸"; display: inline-block; margin-right: 6px; transition: transform 0.15s ease; }
+.archived-section[open] summary::before { transform: rotate(90deg); }
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+.field-help { font-size: 0.78rem; color: var(--ink-soft); margin: -8px 0 12px; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(20,40,45,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.modal-card { background: var(--surface); border-radius: var(--radius); padding: 26px; width: 100%; max-width: 520px; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+.modal-card h2 { margin: 0 0 18px; font-size: 1.2rem; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; flex-wrap: wrap; }
+.hidden { display: none !important; }
+.form-status { font-size: 0.85rem; margin: 0 0 12px; min-height: 1.1em; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <nav class="sidebar" id="sidebarNav"></nav>
+
+  <div class="main-col">
+    <div class="topbar">
+      <div id="topbarBrand"></div>
+    </div>
+
+    <div class="page-content wide">
+      <div class="page-header">
+        <h1>Leads</h1>
+        <p>Every enquiry from the moment it comes in until it's won or lost — and which sources actually pay for themselves.</p>
+      </div>
+
+      <div class="stat-grid" id="statGrid">
+        <div class="stat-card"><div class="stat-label">To chase</div><div class="stat-value" id="statChase">--</div></div>
+        <div class="stat-card"><div class="stat-label">Open leads</div><div class="stat-value" id="statOpen">--</div></div>
+        <div class="stat-card"><div class="stat-label">Out for quote</div><div class="stat-value" id="statQuoted">--</div></div>
+        <div class="stat-card"><div class="stat-label">Won this month</div><div class="stat-value" id="statWon">--</div></div>
+        <div class="stat-card"><div class="stat-label">Cost per won job</div><div class="stat-value" id="statCpa">--</div></div>
+      </div>
+
+      <div class="lead-toolbar">
+        <input type="search" id="searchInput" placeholder="Search leads by name, address, source or notes...">
+        <select id="sourceFilter"><option value="">All sources</option></select>
+        <select id="serviceFilter"><option value="">All services</option></select>
+        <button class="btn btn-primary" id="addLeadBtn">+ Add lead</button>
+      </div>
+
+      <div id="leadArea"><div class="empty-note">Loading leads...</div></div>
+
+      <details class="archived-section" id="archivedSection" style="margin-top:24px;">
+        <summary style="cursor:pointer;font-weight:700;color:var(--ink-soft);">Closed (won/lost) — <span id="archivedCount">0</span></summary>
+        <div id="archivedList" style="margin-top:12px;"></div>
+      </details>
+
+      <div class="card" style="margin-top:24px;">
+        <h3 style="margin-top:0;">Which sources pay for themselves</h3>
+        <p style="color:var(--ink-soft);font-size:0.85rem;margin-top:0;">
+          Spend is the total of the per-lead costs you've entered. Cost per win is that spend divided by the
+          jobs actually won from the source — the number worth comparing against a platform's monthly fee.
+        </p>
+        <div class="source-scroll" id="sourceArea"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="tab-bar" id="tabBarNav"></nav>
+
+<div class="modal-backdrop hidden" id="leadModal">
+  <div class="modal-card">
+    <h2 id="modalTitle">Add lead</h2>
+    <p class="form-status" id="formStatus"></p>
+    <form id="leadForm">
+      <input type="hidden" id="leadId">
+      <div class="field">
+        <label for="name">Name *</label>
+        <input type="text" id="name" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="phone">Phone</label>
+          <input type="tel" id="phone">
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email">
+        </div>
+      </div>
+      <div class="field">
+        <label for="address">Address</label>
+        <textarea id="address" placeholder="Street address"></textarea>
+      </div>
+      <div class="field">
+        <label for="postcode">Postcode</label>
+        <input type="text" id="postcode" style="text-transform:uppercase;" placeholder="e.g. LS1 1AA">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="source">Where it came from</label>
+          <select id="source"></select>
+        </div>
+        <div class="field">
+          <label for="service">Work wanted</label>
+          <select id="service"></select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="statusSelect">Stage</label>
+          <select id="statusSelect">
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="quoted">Quoted</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="enquiryDate">Enquiry date</label>
+          <input type="date" id="enquiryDate">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="valueEstimate">Job worth (£)</label>
+          <input type="number" id="valueEstimate" step="0.01" min="0" placeholder="e.g. 5500">
+        </div>
+        <div class="field">
+          <label for="quotedAmount">Quoted (£)</label>
+          <input type="number" id="quotedAmount" step="0.01" min="0">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="leadCost">Lead cost (£)</label>
+          <input type="number" id="leadCost" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label for="followUpDate">Chase on</label>
+          <input type="date" id="followUpDate">
+        </div>
+      </div>
+      <p class="field-help">Lead cost is the platform fee for this one enquiry — it's what makes the source table below mean anything. Leave it 0 for referrals and repeat customers.</p>
+      <div class="field hidden" id="lostReasonField">
+        <label for="lostReason">Why it was lost</label>
+        <input type="text" id="lostReason" placeholder="e.g. Went with a cheaper quote">
+      </div>
+      <div class="field">
+        <label for="notes">Notes</label>
+        <textarea id="notes" placeholder="What they asked for, what you said, access notes..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger hidden" id="deleteLeadBtn">Delete</button>
+        <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save lead</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="emailModal">
+  <div class="modal-card">
+    <h2>Send email</h2>
+    <p class="form-status" id="emailStatus"></p>
+    <form id="emailForm">
+      <input type="hidden" id="emailLeadId">
+      <div class="field">
+        <label>To</label>
+        <div id="emailTo" style="background:var(--mint);border:1.5px dashed var(--line);border-radius:10px;padding:11px 13px;font-size:0.88rem;color:var(--ink-soft);"></div>
+      </div>
+      <div class="field">
+        <label for="emailTemplate">Start from a template</label>
+        <select id="emailTemplate"></select>
+      </div>
+      <div class="field">
+        <label for="emailSubject">Subject *</label>
+        <input type="text" id="emailSubject" required>
+      </div>
+      <div class="field">
+        <label for="emailBody">Message *</label>
+        <textarea id="emailBody" required style="min-height:220px;"></textarea>
+      </div>
+      <p class="field-help">Read it through before sending — the templates are a starting point, not a send-and-forget.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="emailCancelBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="emailSendBtn">Send</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+initAppShell("leads");
+
+/* Free text in the column, but a fixed list in the dropdown -- an unrecognised value coming
+   back from the database (a source typed on another device, or renamed later) still renders
+   and still groups in the source table, it just isn't offered as a new choice. */
+const SOURCES = [
+  "Checkatrade", "MyBuilder", "Rated People", "Bark", "Google search", "Google Business",
+  "Facebook", "Nextdoor", "Referral", "Letting agent", "Estate agent", "Repeat customer",
+  "Van / signage", "Leaflet", "Tender", "Other",
+];
+const SERVICES = [
+  "Rewire", "Partial rewire", "Consumer unit", "EICR", "EV charger", "Extra circuits",
+  "Fault finding", "Lighting", "Sockets", "Smoke alarms", "Other",
+];
+const OPEN_STATUSES = ["new", "contacted", "quoted"];
+const STAGE_LABELS = { new: "New", contacted: "Contacted", quoted: "Quoted", won: "Won", lost: "Lost" };
+
+let allLeads = [];
+let businessId = null;
+let businessName = "Custom Electrics";
+let leadsTableMissing = false;
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function money(n) {
+  return "£" + (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+/* Local calendar date as YYYY-MM-DD. toISOString() would convert to UTC first, which in BST
+   turns anything before 01:00 into the previous day -- and a chase list that quietly reads a
+   day behind for part of the year is worse than no chase list. */
+function isoDate(d) {
+  const dt = d || new Date();
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+function today() { return isoDate(new Date()); }
+
+function isOpen(l) { return OPEN_STATUSES.includes(l.status); }
+/* Needs chasing = an open lead whose chase date has arrived, OR a brand-new one that has
+   never been given a chase date at all. The second half matters more than the first: a lead
+   nobody has scheduled is exactly the one that goes cold. */
+function needsChasing(l) {
+  if (!isOpen(l)) return false;
+  if (l.follow_up_date) return l.follow_up_date <= today();
+  return l.status === "new";
+}
+function leadValue(l) {
+  return Number(l.quoted_amount) || Number(l.value_estimate) || 0;
+}
+
+/* ============================== Rendering ============================== */
+function leadRowHtml(l) {
+  const chase = l.follow_up_date
+    ? `${l.follow_up_date <= today() ? "⏰ " : ""}${fmtDate(l.follow_up_date)}`
+    : (l.status === "new" ? "⏰ not scheduled" : "—");
+  const value = leadValue(l);
+  const addr = [l.address, l.postcode].filter(Boolean).join(", ");
+  return `
+    <div class="lead-row${needsChasing(l) ? " overdue" : ""}" data-lead="${l.id}">
+      <div class="name-col" title="${escapeHtml(l.name)}">${escapeHtml(l.name)}</div>
+      <div class="service-col">${escapeHtml(l.service || "—")}</div>
+      <div class="source-col">${escapeHtml(l.source || "—")}</div>
+      <div class="contact-col">
+        ${l.phone ? `<a href="tel:${escapeHtml(l.phone)}">📞 ${escapeHtml(l.phone)}</a>` : ""}
+        ${l.email ? `<a href="mailto:${escapeHtml(l.email)}">✉️ ${escapeHtml(l.email)}</a>` : ""}
+        ${addr ? `<span title="${escapeHtml(addr)}">📍 ${escapeHtml(l.postcode || addr)}</span>` : ""}
+      </div>
+      <div class="value-col">${value ? money(value) : "—"}</div>
+      <div class="chase-col${needsChasing(l) ? " due" : ""}">${escapeHtml(chase)}</div>
+      <span class="badge ${escapeHtml(l.status)}">${escapeHtml(STAGE_LABELS[l.status] || l.status)}</span>
+      <div class="lead-actions">
+        ${l.email ? `<button class="btn btn-accent" data-email="${l.id}" title="Send email">📧</button>` : ""}
+        ${isOpen(l) ? `<button class="btn btn-primary" data-convert="${l.id}" title="Won it -- create the client and job">Won ✓</button>` : ""}
+        ${l.client_id ? `<a class="btn btn-ghost" href="clients.html?client=${l.client_id}" title="Open the client record">Client</a>` : ""}
+        <button class="btn btn-ghost" data-edit="${l.id}">Edit</button>
+      </div>
+      ${l.lost_reason ? `<div class="notes-col">Lost: ${escapeHtml(l.lost_reason)}</div>` : ""}
+      ${l.notes ? `<div class="notes-col">${escapeHtml(l.notes)}</div>` : ""}
+    </div>`;
+}
+
+function stageSectionHtml(title, leads, emptyText) {
+  if (!leads.length && !emptyText) return "";
+  return `
+    <div class="stage-heading">${escapeHtml(title)} <span class="count">${leads.length}</span></div>
+    ${leads.length
+      ? `<div class="lead-list">${leads.map(leadRowHtml).join("")}</div>`
+      : `<div class="empty-note" style="padding:22px;">${escapeHtml(emptyText)}</div>`}`;
+}
+
+function renderLeads(leads) {
+  const area = document.getElementById("leadArea");
+  const open = leads.filter(isOpen);
+  const closed = leads.filter(l => !isOpen(l));
+
+  if (!leads.length) {
+    area.innerHTML = `<div class="empty-note">No leads match that — or none have been added yet. Every enquiry you log here is one you can stop losing track of.</div>`;
+  } else {
+    const chasing = open.filter(needsChasing);
+    // The chase list deliberately duplicates rows that also appear under their stage below.
+    // It is the list the user works from in the morning; making them hunt for it in three
+    // separate stage sections would defeat the point.
+    const chaseHtml = chasing.length
+      ? `<div class="stage-heading" style="color:var(--danger);">Needs chasing today <span class="count">${chasing.length}</span></div>
+         <div class="lead-list">${chasing.map(leadRowHtml).join("")}</div>`
+      : `<div class="stage-heading" style="color:var(--good);">Nothing to chase <span class="count">all caught up</span></div>`;
+
+    area.innerHTML = chaseHtml +
+      stageSectionHtml("New", open.filter(l => l.status === "new"), "") +
+      stageSectionHtml("Contacted", open.filter(l => l.status === "contacted"), "") +
+      stageSectionHtml("Quoted", open.filter(l => l.status === "quoted"), "");
+  }
+
+  document.getElementById("archivedCount").textContent = closed.length;
+  document.getElementById("archivedList").innerHTML = closed.length
+    ? `<div class="lead-list">${closed.map(leadRowHtml).join("")}</div>`
+    : `<div class="empty-note">Nothing closed yet.</div>`;
+
+  document.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openLeadModal(b.dataset.edit)));
+  document.querySelectorAll("[data-email]").forEach(b => b.addEventListener("click", () => openEmailModal(b.dataset.email)));
+  document.querySelectorAll("[data-convert]").forEach(b => b.addEventListener("click", () => convertLead(b.dataset.convert)));
+}
+
+function renderStats() {
+  const open = allLeads.filter(isOpen);
+  const quoted = allLeads.filter(l => l.status === "quoted");
+  const monthStart = new Date();
+  monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const wonThisMonth = allLeads.filter(l =>
+    l.status === "won" && new Date(l.closed_at || l.created_at) >= monthStart);
+
+  document.getElementById("statChase").textContent = allLeads.filter(needsChasing).length;
+  document.getElementById("statOpen").textContent = open.length;
+  document.getElementById("statQuoted").textContent = money(quoted.reduce((s, l) => s + leadValue(l), 0));
+  document.getElementById("statWon").textContent = money(wonThisMonth.reduce((s, l) => s + leadValue(l), 0));
+
+  // Cost per won job across everything on file. Leads still open are counted in the spend --
+  // money already paid out on an enquiry that hasn't landed yet is still money spent, and
+  // excluding it would flatter every platform on a slow month.
+  const spend = allLeads.reduce((s, l) => s + (Number(l.lead_cost) || 0), 0);
+  const wonCount = allLeads.filter(l => l.status === "won").length;
+  document.getElementById("statCpa").textContent =
+    spend === 0 ? "£0" : (wonCount ? money(spend / wonCount) : "—");
+}
+
+function renderSourceTable() {
+  const area = document.getElementById("sourceArea");
+  if (!allLeads.length) {
+    area.innerHTML = `<p style="color:var(--ink-soft);margin:0;">Nothing to compare yet — the table fills in as you log where each enquiry came from.</p>`;
+    return;
+  }
+  const bySource = {};
+  for (const l of allLeads) {
+    const key = l.source || "Other";
+    const row = bySource[key] || (bySource[key] = { source: key, leads: 0, won: 0, spend: 0, revenue: 0 });
+    row.leads++;
+    row.spend += Number(l.lead_cost) || 0;
+    if (l.status === "won") { row.won++; row.revenue += leadValue(l); }
+  }
+  const rows = Object.values(bySource).sort((a, b) => b.revenue - a.revenue || b.leads - a.leads);
+  const totals = rows.reduce((t, r) => ({
+    leads: t.leads + r.leads, won: t.won + r.won, spend: t.spend + r.spend, revenue: t.revenue + r.revenue,
+  }), { leads: 0, won: 0, spend: 0, revenue: 0 });
+
+  const cell = (r) => {
+    const winRate = r.leads ? Math.round((r.won / r.leads) * 100) : 0;
+    const cpw = r.won ? r.spend / r.won : null;
+    const net = r.revenue - r.spend;
+    return `
+      <tr>
+        <td>${escapeHtml(r.source)}</td>
+        <td>${r.leads}</td>
+        <td>${r.won}</td>
+        <td>${winRate}%</td>
+        <td>${money(r.spend)}</td>
+        <td>${money(r.revenue)}</td>
+        <td>${cpw === null ? (r.spend ? "no wins yet" : "—") : money(cpw)}</td>
+        <td class="${net >= 0 ? "pos" : "neg"}">${money(net)}</td>
+      </tr>`;
+  };
+
+  area.innerHTML = `
+    <table class="source-table">
+      <thead><tr>
+        <th>Source</th><th>Leads</th><th>Won</th><th>Win rate</th>
+        <th>Spend</th><th>Won value</th><th>Cost per win</th><th>Net</th>
+      </tr></thead>
+      <tbody>${rows.map(cell).join("")}</tbody>
+      <tfoot><tr>
+        <td>All sources</td><td>${totals.leads}</td><td>${totals.won}</td>
+        <td>${totals.leads ? Math.round((totals.won / totals.leads) * 100) : 0}%</td>
+        <td>${money(totals.spend)}</td><td>${money(totals.revenue)}</td>
+        <td>${totals.won ? money(totals.spend / totals.won) : "—"}</td>
+        <td class="${totals.revenue - totals.spend >= 0 ? "pos" : "neg"}">${money(totals.revenue - totals.spend)}</td>
+      </tr></tfoot>
+    </table>`;
+}
+
+function applyFilters() {
+  const q = document.getElementById("searchInput").value.trim().toLowerCase();
+  const src = document.getElementById("sourceFilter").value;
+  const svc = document.getElementById("serviceFilter").value;
+  renderLeads(allLeads.filter(l => {
+    if (src && l.source !== src) return false;
+    if (svc && l.service !== svc) return false;
+    if (!q) return true;
+    const hay = [l.name, l.address, l.postcode, l.phone, l.email, l.source, l.service, l.notes]
+      .filter(Boolean).join(" ").toLowerCase();
+    return q.split(/\s+/).every(term => hay.includes(term));
+  }));
+}
+
+/* ============================== Data ============================== */
+async function loadLeads() {
+  const { data, error } = await supabaseClient
+    .from("leads").select("*").eq("business_id", businessId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    // Added by custom-electrics-add-leads.sql -- say so plainly rather than showing a raw
+    // PostgREST "relation does not exist", same as the Accounts tab does for expenses.
+    leadsTableMissing = /does not exist|schema cache/i.test(error.message);
+    document.getElementById("leadArea").innerHTML = `<div class="empty-note">${
+      leadsTableMissing
+        ? "The leads table isn't set up yet — run <code>custom-electrics-add-leads.sql</code> in the Supabase SQL editor, then reload this page."
+        : "Couldn't load leads: " + escapeHtml(error.message)}</div>`;
+    allLeads = [];
+    renderSourceTable();
+    return;
+  }
+  allLeads = data || [];
+  renderStats();
+  renderSourceTable();
+  applyFilters();
+}
+
+/* ============================== Lead form ============================== */
+function fillSelect(id, values, current) {
+  const list = current && !values.includes(current) ? [current, ...values] : values;
+  document.getElementById(id).innerHTML = list.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+}
+
+function syncLostReasonField() {
+  document.getElementById("lostReasonField")
+    .classList.toggle("hidden", document.getElementById("statusSelect").value !== "lost");
+}
+
+function openLeadModal(leadId) {
+  const lead = leadId ? allLeads.find(l => l.id === leadId) : null;
+  const form = document.getElementById("leadForm");
+  form.reset();
+  document.getElementById("formStatus").textContent = "";
+  document.getElementById("leadId").value = lead ? lead.id : "";
+  document.getElementById("modalTitle").textContent = lead ? "Edit lead" : "Add lead";
+  document.getElementById("deleteLeadBtn").classList.toggle("hidden", !lead);
+
+  fillSelect("source", SOURCES, lead && lead.source);
+  fillSelect("service", SERVICES, lead && lead.service);
+
+  if (lead) {
+    document.getElementById("name").value = lead.name || "";
+    document.getElementById("phone").value = lead.phone || "";
+    document.getElementById("email").value = lead.email || "";
+    document.getElementById("address").value = lead.address || "";
+    document.getElementById("postcode").value = lead.postcode || "";
+    document.getElementById("source").value = lead.source || "Other";
+    document.getElementById("service").value = lead.service || "Other";
+    document.getElementById("statusSelect").value = lead.status || "new";
+    document.getElementById("enquiryDate").value = lead.enquiry_date || today();
+    document.getElementById("valueEstimate").value = lead.value_estimate ?? "";
+    document.getElementById("quotedAmount").value = lead.quoted_amount ?? "";
+    document.getElementById("leadCost").value = lead.lead_cost ?? "";
+    document.getElementById("followUpDate").value = lead.follow_up_date || "";
+    document.getElementById("lostReason").value = lead.lost_reason || "";
+    document.getElementById("notes").value = lead.notes || "";
+  } else {
+    document.getElementById("source").value = "Other";
+    document.getElementById("service").value = "Rewire";
+    document.getElementById("statusSelect").value = "new";
+    document.getElementById("enquiryDate").value = today();
+    // A new lead defaults to being chased in two days -- long enough not to nag, short
+    // enough that it lands on the chase list before the customer has rung someone else.
+    const soon = new Date();
+    soon.setDate(soon.getDate() + 2);
+    document.getElementById("followUpDate").value = isoDate(soon);
+  }
+  syncLostReasonField();
+  document.getElementById("leadModal").classList.remove("hidden");
+}
+function closeLeadModal() { document.getElementById("leadModal").classList.add("hidden"); }
+
+document.getElementById("addLeadBtn").addEventListener("click", () => openLeadModal(null));
+document.getElementById("cancelBtn").addEventListener("click", closeLeadModal);
+document.getElementById("statusSelect").addEventListener("change", syncLostReasonField);
+document.getElementById("postcode").addEventListener("input", (e) => {
+  const pos = e.target.selectionStart;
+  e.target.value = e.target.value.toUpperCase();
+  e.target.setSelectionRange(pos, pos);
+});
+
+function numOrNull(id) {
+  const v = document.getElementById(id).value.trim();
+  return v === "" ? null : Number(v);
+}
+
+document.getElementById("leadForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("formStatus");
+  const saveBtn = document.getElementById("saveBtn");
+  const id = document.getElementById("leadId").value;
+  const existing = id ? allLeads.find(l => l.id === id) : null;
+  const newStatus = document.getElementById("statusSelect").value;
+
+  const record = {
+    name: document.getElementById("name").value.trim(),
+    phone: document.getElementById("phone").value.trim() || null,
+    email: document.getElementById("email").value.trim() || null,
+    address: document.getElementById("address").value.trim() || null,
+    postcode: document.getElementById("postcode").value.trim().toUpperCase() || null,
+    source: document.getElementById("source").value,
+    service: document.getElementById("service").value,
+    status: newStatus,
+    enquiry_date: document.getElementById("enquiryDate").value || today(),
+    value_estimate: numOrNull("valueEstimate"),
+    quoted_amount: numOrNull("quotedAmount"),
+    lead_cost: numOrNull("leadCost") ?? 0,
+    follow_up_date: document.getElementById("followUpDate").value || null,
+    lost_reason: newStatus === "lost" ? (document.getElementById("lostReason").value.trim() || null) : null,
+    notes: document.getElementById("notes").value.trim() || null,
+  };
+  // closed_at is stamped on the transition into won/lost and cleared if it's reopened, so
+  // "won this month" measures when the job actually landed, not when the row was created.
+  const wasClosed = existing && !OPEN_STATUSES.includes(existing.status);
+  const isClosed = !OPEN_STATUSES.includes(newStatus);
+  if (isClosed && !wasClosed) record.closed_at = new Date().toISOString();
+  if (!isClosed && wasClosed) record.closed_at = null;
+  if (isClosed) record.follow_up_date = null;
+
+  saveBtn.disabled = true; saveBtn.textContent = "Saving...";
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  try {
+    if (id) {
+      const { error } = await supabaseClient.from("leads").update(record).eq("id", id);
+      if (error) throw error;
+    } else {
+      const { data: userData } = await supabaseClient.auth.getUser();
+      const { error } = await supabaseClient.from("leads").insert({
+        ...record, business_id: businessId, created_by: userData.user ? userData.user.id : null,
+      });
+      if (error) throw error;
+    }
+    closeLeadModal();
+    await loadLeads();
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't save: " + err.message;
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = "Save lead";
+  }
+});
+
+document.getElementById("deleteLeadBtn").addEventListener("click", async () => {
+  const id = document.getElementById("leadId").value;
+  if (!id) return;
+  if (!confirm("Delete this lead? This can't be undone. If you just didn't win it, mark it Lost instead — that keeps it in the source figures.")) return;
+  const { error } = await supabaseClient.from("leads").delete().eq("id", id);
+  if (error) { alert("Couldn't delete: " + error.message); return; }
+  closeLeadModal();
+  await loadLeads();
+});
+
+/* ============================== Won -> client + job ==============================
+   The one-click conversion. A lead only earns rows in `clients` and `jobs` at this point --
+   see the header comment in custom-electrics-add-leads.sql for why unconverted enquiries
+   stay out of those tables. Both ids are written back so the link is traceable, and a lead
+   that already has a client_id won't create a second copy of the same person. */
+async function convertLead(leadId) {
+  const lead = allLeads.find(l => l.id === leadId);
+  if (!lead) return;
+
+  if (lead.client_id) {
+    if (!confirm(`${lead.name} already has a client record. Just mark this lead as won?`)) return;
+    const { error } = await supabaseClient.from("leads")
+      .update({ status: "won", closed_at: new Date().toISOString(), follow_up_date: null }).eq("id", leadId);
+    if (error) { alert("Couldn't update: " + error.message); return; }
+    await loadLeads();
+    return;
+  }
+
+  if (!confirm(`Won it — create a client and job for ${lead.name}?`)) return;
+
+  try {
+    const { data: client, error: clientErr } = await supabaseClient.from("clients").insert({
+      business_id: businessId,
+      name: lead.name,
+      address: lead.address || null,
+      postcode: lead.postcode || null,
+      phone: lead.phone || null,
+      email: lead.email || null,
+      notes: [
+        `Came from: ${lead.source || "unknown"} (${fmtDate(lead.enquiry_date || lead.created_at)})`,
+        lead.notes,
+      ].filter(Boolean).join("\n"),
+    }).select("id").single();
+    if (clientErr) throw clientErr;
+
+    const { data: job, error: jobErr } = await supabaseClient.from("jobs").insert({
+      business_id: businessId,
+      client_id: client.id,
+      title: `${lead.service || "Electrical work"} — ${lead.name}`,
+      status: "enquiry",
+      address: [lead.address, lead.postcode].filter(Boolean).join(", ") || null,
+      notes: lead.notes || null,
+    }).select("id").single();
+    if (jobErr) throw jobErr;
+
+    const { error: leadErr } = await supabaseClient.from("leads").update({
+      status: "won", closed_at: new Date().toISOString(), follow_up_date: null,
+      client_id: client.id, job_id: job.id,
+    }).eq("id", leadId);
+    if (leadErr) throw leadErr;
+
+    await loadLeads();
+    if (confirm(`${lead.name} is now a client with a job on file. Open the diary to book it in?`)) {
+      window.location.href = `diary.html?client=${client.id}`;
+    }
+  } catch (err) {
+    alert("Couldn't convert this lead: " + err.message);
+  }
+}
+
+/* ============================== Email ============================== */
+function templateValues(lead) {
+  return {
+    name: lead.name || "",
+    first_name: firstNameFrom(lead.name),
+    business: businessName,
+    service: (lead.service || "the work").toLowerCase(),
+    amount: leadValue(lead) ? money(leadValue(lead)) : "",
+    year: String(new Date().getFullYear()),
+  };
+}
+
+let emailingLead = null;
+
+function openEmailModal(leadId) {
+  const lead = allLeads.find(l => l.id === leadId);
+  if (!lead || !lead.email) return;
+  emailingLead = lead;
+  document.getElementById("emailForm").reset();
+  document.getElementById("emailStatus").textContent = "";
+  document.getElementById("emailLeadId").value = leadId;
+  document.getElementById("emailTo").textContent = `${lead.name} <${lead.email}>`;
+  document.getElementById("emailTemplate").value = "";
+  document.getElementById("emailModal").classList.remove("hidden");
+}
+function closeEmailModal() { document.getElementById("emailModal").classList.add("hidden"); }
+document.getElementById("emailCancelBtn").addEventListener("click", closeEmailModal);
+
+document.getElementById("emailForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("emailStatus");
+  const sendBtn = document.getElementById("emailSendBtn");
+  const lead = emailingLead;
+  if (!lead) return;
+  const subject = document.getElementById("emailSubject").value.trim();
+  const body = document.getElementById("emailBody").value.trim();
+
+  sendBtn.disabled = true; sendBtn.textContent = "Sending...";
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  try {
+    const { data, error } = await supabaseClient.functions.invoke("send-email", {
+      body: { to: lead.email, subject, text: body },
+    });
+    if (error) {
+      // supabase-js's default message just says "non-2xx status code" -- the real reason is
+      // in the response body it attaches as .context (same handling as clients.html).
+      let detail = error.message;
+      try {
+        if (error.context && typeof error.context.json === "function") {
+          const parsed = await error.context.json();
+          if (parsed && parsed.error) detail = parsed.error;
+        }
+      } catch (_) { /* body wasn't JSON or was already consumed -- fall back to error.message */ }
+      throw new Error(detail);
+    }
+    if (data && data.error) throw new Error(data.error);
+
+    await supabaseClient.from("emails_log").insert({
+      business_id: businessId, lead_id: lead.id, client_id: lead.client_id || null,
+      to_address: lead.email, subject, body,
+    });
+
+    // Sending IS contact -- move a new lead along and push the chase date out a week, so the
+    // user doesn't have to remember to do both by hand every time.
+    const update = { status: lead.status === "new" ? "contacted" : lead.status };
+    if (isOpen(lead)) {
+      const next = new Date();
+      next.setDate(next.getDate() + 7);
+      update.follow_up_date = isoDate(next);
+    }
+    await supabaseClient.from("leads").update(update).eq("id", lead.id);
+
+    closeEmailModal();
+    await loadLeads();
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't send: " + err.message;
+  } finally {
+    sendBtn.disabled = false; sendBtn.textContent = "Send";
+  }
+});
+
+/* ============================== Init ============================== */
+document.getElementById("searchInput").addEventListener("input", applyFilters);
+document.getElementById("sourceFilter").addEventListener("change", applyFilters);
+document.getElementById("serviceFilter").addEventListener("change", applyFilters);
+
+(async function init() {
+  businessId = await getCurrentBusinessId();
+  if (!businessId) {
+    document.getElementById("leadArea").innerHTML =
+      `<div class="empty-note">Couldn't load your business account -- try signing in again.</div>`;
+    return;
+  }
+  const { data: biz } = await supabaseClient.from("businesses").select("name").eq("id", businessId).single();
+  if (biz && biz.name) businessName = biz.name;
+
+  document.getElementById("sourceFilter").innerHTML =
+    `<option value="">All sources</option>` + SOURCES.map(s => `<option value="${s}">${s}</option>`).join("");
+  document.getElementById("serviceFilter").innerHTML =
+    `<option value="">All services</option>` + SERVICES.map(s => `<option value="${s}">${s}</option>`).join("");
+
+  wireTemplatePicker("emailTemplate", "emailSubject", "emailBody",
+    () => templateValues(emailingLead || {}), ["lead", "client"]);
+
+  await loadLeads();
+})();
+</script>
+</body>
+</html>

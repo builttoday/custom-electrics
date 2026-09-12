@@ -76,7 +76,7 @@ function renderNav(activeId) {
 async function requireAuth() {
   if (!supabaseClient) return; // not configured yet -- let pages render unauthenticated during setup
   const { data } = await supabaseClient.auth.getSession();
-  if (!data.session) window.location.href = "index.html";
+  if (!data.session) window.location.href = "login.html";
 }
 
 /* Resolves the signed-in user's business_id via business_members, cached for the page's
@@ -97,7 +97,7 @@ async function getCurrentBusinessId() {
 
 async function logout() {
   if (supabaseClient) await supabaseClient.auth.signOut();
-  window.location.href = "index.html";
+  window.location.href = "login.html";
 }
 
 /* ============================== Attachments (photos on invoices/certificates) ==============================
@@ -370,7 +370,7 @@ function makeClientSelectSearchable(selectId) {
    wording only exists once.
 
    Merge tokens are filled by fillTemplate(): {first_name} {name} {business} {service}
-   {amount} {year}. Anything still unfilled is left visible IN BRACES on purpose -- a
+   {amount} {year} {review_link}. Anything still unfilled is left visible IN BRACES on purpose -- a
    half-merged email that reads "Hi {first_name}" is embarrassing but obvious, whereas
    silently blanking the token produces "Hi ," and gets sent without anyone noticing.
 
@@ -379,6 +379,13 @@ function makeClientSelectSearchable(selectId) {
    offers an easy way to stop. Emailing strangers who never enquired is not -- so the cold
    templates below are aimed at businesses (letting/estate agents), where B2B marketing is
    permitted, not at householders who haven't been in touch. */
+/* Where the "ask for a review" template sends people. Rated People for now because it is
+   the only profile that exists; swap this for the Google review short link
+   (https://g.page/r/...) as soon as the Google Business Profile is verified -- Google
+   reviews feed the map pack, which is where most "electrician near me" traffic lands, and
+   a Rated People review does nothing for local search rankings. */
+const REVIEW_LINK = "https://www.ratedpeople.com/profile/william-munro";
+
 const MARKETING_TEMPLATES = [
   {
     id: "past-check-in",
@@ -440,6 +447,24 @@ Thanks,
 {business}
 
 If you'd rather I didn't email you again, just reply saying STOP and I'll take you off the list.`,
+  },
+  {
+    id: "review-request",
+    label: "Past customer — ask for a review",
+    audience: "client",
+    subject: "Thanks for the work, {first_name}",
+    body: `Hi {first_name},
+
+Thanks again for having me out -- I hope everything's working as it should.
+
+I'm a one-man business with no advertising budget, so reviews are genuinely how most people find me. If you've got a spare minute, a couple of lines about the job would help me more than you'd think:
+
+{review_link}
+
+If anything isn't right, reply to this email first and I'll come back and sort it out. I'd always rather fix something than have you leave it.
+
+Thanks,
+{business}`,
   },
   {
     id: "letting-agent-intro",
@@ -719,6 +744,7 @@ function createEmailComposer(options) {
       service: r && r.service ? String(r.service).toLowerCase() : "",
       amount: r && r.amount ? r.amount : "",
       year: String(new Date().getFullYear()),
+      review_link: REVIEW_LINK,
     };
   }
 

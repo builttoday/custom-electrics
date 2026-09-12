@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /login.html
+Disallow: /dashboard.html
+Disallow: /diary.html
+Disallow: /jobs.html
+Disallow: /clients.html
+Disallow: /leads.html
+Disallow: /invoices.html
+Disallow: /certificates.html
+Disallow: /accounts.html
+Disallow: /settings.html
+Disallow: /import.html
+
+Sitemap: https://customelectrics.co.uk/sitemap.xml

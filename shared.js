@@ -379,12 +379,12 @@ function makeClientSelectSearchable(selectId) {
    offers an easy way to stop. Emailing strangers who never enquired is not -- so the cold
    templates below are aimed at businesses (letting/estate agents), where B2B marketing is
    permitted, not at householders who haven't been in touch. */
-/* Where the "ask for a review" template sends people. Rated People for now because it is
-   the only profile that exists; swap this for the Google review short link
-   (https://g.page/r/...) as soon as the Google Business Profile is verified -- Google
-   reviews feed the map pack, which is where most "electrician near me" traffic lands, and
-   a Rated People review does nothing for local search rankings. */
-const REVIEW_LINK = "https://www.ratedpeople.com/profile/william-munro";
+/* Where the "ask for a review" template sends people: the Google Business Profile review
+   box, direct. Google reviews feed the map pack, which is where most "electrician near me"
+   traffic lands -- a Rated People review does nothing for local search rankings, so Google
+   is the only sensible default. The link opens the review form itself, not the profile, so
+   the customer is one tap from typing rather than having to hunt for the button. */
+const REVIEW_LINK = "https://g.page/r/CXxEe5se8ssVEBM/review";
 
 const MARKETING_TEMPLATES = [
   {

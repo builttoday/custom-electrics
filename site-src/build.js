@@ -352,9 +352,12 @@ ${trustBar()}
     <h2>A review makes a real difference</h2>
     <p class="lede">I'm a one-man business without an advertising budget, so word of mouth is most of how people find me. If I've done work for you, a couple of lines takes a minute and genuinely helps.</p>
     <div class="btn-row" style="margin-top:24px">
-      <a class="btn btn-primary" href="${BUSINESS.ratedPeople}" rel="noopener">Leave a review on Rated People</a>
-      <a class="btn btn-ghost" href="mailto:${BUSINESS.email}?subject=Feedback">Email me your feedback</a>
+      <a class="btn btn-primary" href="${BUSINESS.googleReview}" rel="noopener">Leave a Google review</a>
+      <a class="btn btn-ghost" href="${BUSINESS.ratedPeople}" rel="noopener">Review on Rated People</a>
     </div>
+    <p style="margin-top:18px;font-size:.86rem;color:var(--ink-soft)">
+      Or just <a href="mailto:${BUSINESS.email}?subject=Feedback">email me your feedback</a> if you'd rather not post publicly.
+    </p>
   </div>
 </section>
 

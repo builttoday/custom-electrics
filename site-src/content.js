@@ -29,6 +29,7 @@ const BUSINESS = {
   domain: "https://customelectrics.co.uk",
   facebook: "https://www.facebook.com/CustomElectrics/",
   ratedPeople: "https://www.ratedpeople.com/profile/william-munro",
+  googleReview: "https://g.page/r/CXxEe5se8ssVEBM/review",
   founded: "2021",
   owner: "Will",
   hours: "Mon–Fri 08:00–18:00, Sat 09:00–13:00",

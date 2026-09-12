@@ -125,7 +125,7 @@ const SERVICES = [
       <p>A <strong>full rewire</strong> replaces every cable, accessory and the consumer unit. A <strong>partial rewire</strong> tackles the circuits that are actually failing — often the lighting, or the upstairs sockets — and keeps sound cable where it is. Partial is cheaper and far less disruptive, and it is the right answer more often than the trade generally admits.</p>
 
       <h2>How I work</h2>
-      <p>First fix is the messy part: lifting floorboards, chasing walls, running new cable. Second fix is the accessories and testing. Between them you will need a plasterer, and I will tell you honestly how much making good to expect — chases in a stone wall are not a light touch, and anyone telling you otherwise is selling you something.</p>
+      <p>First fix is the cabling: lifting floorboards, chasing walls, running the new circuits. Second fix is the accessories and testing. A plasterer follows on between the two, and I will show you exactly where the chases will run before I cut anything, so you know what to budget for making good.</p>
       <p>You get the work staged so the kitchen and at least one lighting circuit are live every night. If you are living in the house through it, say so at the quote stage and I will plan around it.</p>
 
       <h2>Certification</h2>
@@ -133,9 +133,9 @@ const SERVICES = [
       <p>Work like this is notifiable, which means it has to be registered with Building Control. I take care of that side for you: the building notice goes in to your council before I start, they inspect the work, and they issue the completion certificate to sit alongside your Electrical Installation Certificate. The council charges a fee for the inspection, and I will tell you exactly what it is when I quote, so it is in the price from the start rather than a surprise at the end.</p>
     `,
     faqs: [
-      { q: "Can I live in the house during a rewire?", a: "Usually yes, if the work is staged. It is dusty and disruptive, and each room is out of action while it is being done, but I plan it so you have power and lighting each evening. Tell me before I quote if anyone in the house works from home or needs power for medical equipment." },
-      { q: "How long does a rewire take?", a: "A typical three-bedroom house is around a week to ten days for first and second fix, plus plastering and decorating afterwards which is not my trade. Bigger or occupied houses take longer because the work is staged." },
-      { q: "Do you make good the plaster?", a: "I fill chases so they are ready for a plasterer, but I am an electrician, not a plasterer or decorator. I will be straight with you at quote stage about how much making good the job will leave, so it is in your budget from the start rather than a surprise at the end." },
+      { q: "Can I live in the house during a rewire?", a: "Usually yes. I stage the work so you have power and lighting every evening, and so only one area is out of action at a time. Tell me before I quote if anyone in the house works from home or needs power for medical equipment and I will plan around it." },
+      { q: "How long does a rewire take?", a: "A typical three-bedroom house is around a week to ten days for first and second fix, with plastering and decorating following on after. Bigger or occupied houses take longer, because the work is staged to keep you in power throughout." },
+      { q: "Do you make good the plaster?", a: "I fill every chase so the walls are ready for a plasterer to skim. At quote stage I will walk you through exactly how much making good the job will leave, so it is in your budget from the start rather than a surprise at the end." },
       { q: "Is a partial rewire a false economy?", a: "Not if the remaining cable is genuinely sound — and I will show you the test results rather than ask you to take my word for it. It is a false economy when the old cable is on its way out, and I will say so plainly if that is what I find." },
     ],
   },
@@ -209,7 +209,7 @@ const SERVICES = [
       </ul>
 
       <h2>Which charger</h2>
-      <p>I will fit the unit you want. If you have no preference I will recommend based on your parking, whether you need the cable tethered or untethered, and whether you are on a cheap-rate overnight tariff worth scheduling around. I do not take commission from a manufacturer, so the recommendation is just the recommendation.</p>
+      <p>I will fit the unit you want. If you have no preference I will recommend one based on your parking, whether a tethered or untethered cable suits you better, and whether you are on a cheap-rate overnight tariff worth scheduling around. The recommendation is based on your house, not on which manufacturer I am signed up to.</p>
     `,
     faqs: [
       { q: "Can I get a grant?", a: "The main domestic grant closed to most homeowners in 2022. The EV chargepoint grant is still open to people in flats and rented accommodation, and there is a separate scheme for landlords. I will tell you honestly whether you qualify rather than quote as though you do." },
@@ -409,11 +409,11 @@ const AREAS = [
     intro: "I cover Leeds and the surrounding LS postcodes from my base in Pudsey, on the west side of the city. Domestic work is what I do — houses, flats and rented property rather than industrial sites.",
     body: `
       <h2>Where I work in Leeds</h2>
-      <p>Realistically, the further west side: Pudsey, Farsley, Bramley, Horsforth, Armley, Kirkstall, Headingley, Rodley, Calverley, Guiseley, Yeadon, Morley and into the city centre. If you are further east it is worth a call — I will tell you honestly whether the travel makes sense for the size of job rather than quoting for a journey I cannot justify.</p>
+      <p>Mostly the western side: Pudsey, Farsley, Bramley, Horsforth, Armley, Kirkstall, Headingley, Rodley, Calverley, Guiseley, Yeadon, Morley and into the city centre. If you are further east it is still worth a call — give me the postcode and I will let you know.</p>
 
       <h2>Leeds-specific work</h2>
       <p>Leeds has an enormous private rented sector, and with it a constant demand for <a href="/services/eicr-landlord-certificates/">EICRs</a>. Student housing around Headingley and Hyde Park is generally HMO, which brings tighter requirements — interlinked alarms, emergency lighting in some cases, and inspection intervals that HMO licensing conditions can set shorter than the standard five years. Worth checking your licence rather than assuming five.</p>
-      <p>City centre apartments are a different problem again: landlord-owned risers, management company permissions and no easy route for new cable. Some things simply cannot be done in a leasehold flat without freeholder consent, and I would rather tell you that on the phone than after charging you for a visit.</p>
+      <p>City centre apartments come with their own considerations: landlord-owned risers, management company permissions and limited routes for new cable. Work in a leasehold flat often needs freeholder consent first, so ring me and I will tell you what is involved before anyone books a visit.</p>
 
       <h2>What I cover</h2>
       <ul>
@@ -443,7 +443,7 @@ const AREAS = [
       <p>With so much of the BD stock let, <a href="/services/eicr-landlord-certificates/">EICRs</a> and their remedials are steady work. Bradford Council enforces the electrical safety regulations like any other authority, and the 28-day window for clearing C1, C2 and FI items is the part that catches landlords out. Doing the inspection and the remedials with one contractor is what keeps you inside it.</p>
 
       <h2>Areas I cover</h2>
-      <p>Thornbury, Laisterdyke, Eccleshill, Idle, Thackley, Shipley, Bingley, Great Horton, Clayton and the city centre among others. As with Leeds, if you are on the far side of the district ring me and I will be straight about whether it is worth my travel for the job in question.</p>
+      <p>Thornbury, Laisterdyke, Eccleshill, Idle, Thackley, Shipley, Bingley, Great Horton, Clayton and the city centre among others. As with Leeds, if you are on the far side of the district it is still worth ringing — give me the postcode and the job and I will tell you what I can do.</p>
     `,
   },
 ];

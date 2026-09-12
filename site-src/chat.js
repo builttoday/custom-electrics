@@ -60,7 +60,7 @@
       ],
     },
     fault3: {
-      say: "Then it needs tracing properly with instruments rather than guessing. Will charges for the time it takes, with a limit agreed up front so it can't run away — most faults are found within an hour or two.",
+      say: "Then it needs tracing properly with instruments rather than guessing. Will charges for the time it takes, with a limit agreed up front, and most faults are found within an hour or two.",
       options: [["Leave my number", "capture"], ["Call " + PHONE, "call"], ["Ask something else", "ai"]],
       service: "Fault finding",
     },

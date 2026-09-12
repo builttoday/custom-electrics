@@ -252,7 +252,7 @@ function buildAreas() {
   <div class="wrap">
     <p class="eyebrow">Areas covered</p>
     <h1>Where I work</h1>
-    <p class="lede">I'm based in Pudsey, so the west side of Leeds and into Bradford is where I am most days. If you're outside these areas it is still worth ringing &mdash; I will just be honest about whether the travel makes sense for the size of the job.</p>
+    <p class="lede">I'm based in Pudsey, so the west side of Leeds and into Bradford is where I am most days. If you're outside these areas it is still worth ringing &mdash; give me the postcode and I'll let you know.</p>
     <div class="grid grid-3" style="margin-top:42px">
       ${AREAS.map((a) => `<a class="card" href="/areas/${a.slug}/">
         <span class="card-icon">${icon("pin")}</span>
@@ -350,7 +350,7 @@ ${trustBar()}
   <div class="wrap center">
     <p class="eyebrow">Been a customer?</p>
     <h2>A review makes a real difference</h2>
-    <p class="lede">I'm a one-man business without an advertising budget, so word of mouth is most of how people find me. If I've done work for you, a couple of lines takes a minute and genuinely helps.</p>
+    <p class="lede">Word of mouth is how most people find me, so a review is worth more to me than any advert. If I've done work for you, a couple of lines takes a minute and makes a real difference.</p>
     <div class="btn-row" style="margin-top:24px">
       <a class="btn btn-primary" href="${BUSINESS.googleReview}" rel="noopener">Leave a Google review</a>
       <a class="btn btn-ghost" href="${BUSINESS.ratedPeople}" rel="noopener">Review on Rated People</a>
@@ -389,7 +389,7 @@ ${trustBar()}
   <div class="wrap prose">
     <h2>How I work</h2>
     <p>Custom Electrics Ltd has been running since ${BUSINESS.founded}, doing domestic electrical work across Pudsey, Leeds, Bradford and the surrounding parts of West Yorkshire. It is deliberately a small operation. I quote the job, I do the job, and I am the one you speak to afterwards if something needs looking at again.</p>
-    <p>What that means in practice is that I have no incentive to sell you work you don't need. There is no salesperson on commission and no target to hit. If your house needs a consumer unit rather than the rewire you were braced for, I will say so, and I would rather lose the bigger job than have you find out later that you didn't need it.</p>
+    <p>What that means in practice is that the advice you get is the advice I would give a neighbour. If your house needs a consumer unit rather than the rewire you were braced for, I will tell you, and I will show you the test results that say so. Plenty of my work comes from people I have talked out of the bigger job.</p>
 
     <h2>Qualifications</h2>
     <ul>
@@ -404,7 +404,7 @@ ${trustBar()}
     <p>This is the bit people discover matters years later, usually when they sell the house and a solicitor asks for certificates for work done. Keep them somewhere safe &mdash; and if you have lost one I issued, ask and I will look it up.</p>
 
     <h2>No job too small</h2>
-    <p>It is on every tradesman's website and most of them do not mean it. I do. A single socket, a dead light, a dimmer that buzzes &mdash; these are all perfectly good reasons to get in touch, and they are priced as the small jobs they are. Small jobs are how most of my customers found me in the first place.</p>
+    <p>I mean it literally. A single socket, a dead light, a dimmer that buzzes &mdash; all perfectly good reasons to get in touch, and all priced as the small jobs they are. Small jobs are how most of my customers found me in the first place, and plenty of them have since had bigger work done.</p>
 
     <h2>The business</h2>
     <p>${esc(BUSINESS.legalName)} is registered in England and Wales, company number ${BUSINESS.companyNumber}. That means you are dealing with a registered company, and you can look the filings up at Companies House yourself if you want to.</p>

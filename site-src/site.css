@@ -244,7 +244,6 @@ a.card:hover .card-more{color:var(--orange-dark)}
 /* ===================== Chat assistant =====================
    Sits above the mobile call bar rather than over it -- the call bar is the higher-value
    control on a phone and must never be covered by a chat bubble. */
-.ce-sr{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .ce-chat{position:fixed;right:20px;bottom:20px;z-index:80;font-size:15px}
 .ce-chat-fab{display:inline-flex;align-items:center;gap:9px;background:var(--teal);color:#fff;
   border:none;border-radius:999px;padding:13px 20px;cursor:pointer;box-shadow:var(--shadow-lg);
@@ -309,17 +308,8 @@ a.card:hover .card-more{color:var(--orange-dark)}
 .ce-cap button:disabled{opacity:.6;cursor:default}
 .ce-cap-note{margin:0;font-size:.74rem;color:var(--ink-soft);line-height:1.4}
 
-.ce-chat-input{display:flex;gap:8px;padding:11px 12px;border-top:1px solid var(--line);
-  background:var(--surface);flex-shrink:0}
-.ce-chat-input input{flex:1;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;
-  font:inherit;font-size:.92rem;min-width:0;background:var(--surface);color:var(--ink)}
-.ce-chat-input input:focus{outline:none;border-color:var(--teal-mid)}
-.ce-chat-input button{background:var(--teal);color:#fff;border:none;border-radius:10px;width:44px;
-  flex-shrink:0;cursor:pointer;display:grid;place-items:center}
-.ce-chat-input button:hover{background:var(--teal-dark)}
-.ce-chat-input svg{width:19px;height:19px}
-.ce-chat-foot{margin:0;padding:0 13px 11px;font-size:.72rem;color:var(--ink-soft);
-  background:var(--surface);line-height:1.45}
+.ce-chat-foot{margin:0;padding:11px 14px;font-size:.74rem;color:var(--ink-soft);
+  background:var(--surface);border-top:1px solid var(--line);line-height:1.45;flex-shrink:0}
 .ce-chat-foot a{color:var(--teal-mid);font-weight:600}
 
 @media (max-width:760px){

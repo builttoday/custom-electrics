@@ -1,12 +1,15 @@
 /* ===================== Custom Electrics — website chat assistant =====================
-   A scripted triage tree with an AI fallback, in that order of preference.
+   A scripted triage tree. Buttons only: there is deliberately no free-text box and no
+   language model behind this.
 
-   The tree is not a limitation, it is the product. Nearly every visitor wants one of six
-   things, and a button answers those instantly, for free, in words Will has approved.
-   Only a genuinely unanticipated question costs money or risks an invented answer, and
-   those go to /functions/v1/website-chat.
+   Nearly every visitor wants one of six things, and a button answers those instantly, in
+   words Will has approved. Removing the text box removes the three things that came with
+   it -- a per-message API cost, the chance of an invented answer on a trading
+   electrician's own website, and a public endpoint to defend. What is left is the part
+   that was doing the work anyway.
 
-   No dependencies, no framework. Loaded with `defer` so it never blocks rendering. */
+   The only network call is the callback form, which posts to the same website-enquiry
+   function as the contact page. No dependencies, no framework, loaded with `defer`. */
 (function () {
   "use strict";
 
@@ -17,7 +20,7 @@
 
   /* ---------------------------------------------------------------------------------
      The script. Each node: what the bot says, then the buttons offered.
-     `capture` opens the callback form. `ai` hands the next free-typed message to Claude.
+     `capture` opens the callback form, `call` dials, `start` goes back to the top.
 
      Copy here is lifted from the service pages deliberately -- one voice, and anything
      corrected on a page gets corrected here too. Nothing in this tree states a price,
@@ -61,7 +64,7 @@
     },
     fault3: {
       say: "Then it needs tracing properly with instruments rather than guessing. Will charges for the time it takes, with a limit agreed up front, and most faults are found within an hour or two.",
-      options: [["Leave my number", "capture"], ["Call " + PHONE, "call"], ["Ask something else", "ai"]],
+      options: [["Leave my number", "capture"], ["Call " + PHONE, "call"], ["Back to the start", "start"]],
       service: "Fault finding",
     },
     whole: {
@@ -84,12 +87,13 @@
     },
     board2: {
       say: "A steel unit with an RCBO on every circuit, so one fault no longer blacks out the house and you can see which circuit caused it. Surge protection is included. Will tests every existing circuit before quoting, so the price accounts for anything the old board was quietly tolerating.",
-      options: [["What about the certificate?", "notify"], ["Leave my number", "capture"], ["Ask something else", "ai"]],
+      options: [["What about the certificate?", "notify"], ["Leave my number", "capture"], ["Back to the start", "start"]],
       service: "Fuse board / consumer unit",
     },
 
-    /* The honest answer on notification. This is the one topic where a generic chatbot
-       would confidently say the wrong thing, so it is scripted rather than left to the AI. */
+    /* The honest answer on notification. Worth its own branch: it is the question a
+       customer is most likely to ask about a fuse board after price, and the one a
+       generic assistant would answer wrongly. */
     notify: {
       say: "You get a full Electrical Installation Certificate with all the test results. A new board is also notifiable, so it gets registered with Building Control — Will puts the building notice in before starting, the council inspects, and they issue the completion certificate. There's a council fee for that, and he'll tell you what it is before you commit to anything.",
       options: [["Which work is notifiable?", "notify2"], ["Leave my number", "capture"]],
@@ -110,7 +114,7 @@
     },
     eicr2: {
       say: "C1 is danger present and gets made safe on the spot. C2 is potentially dangerous. Either makes the report unsatisfactory, as does FI. C3 is only 'improvement recommended' — it does not make a report fail and you don't have to action it, so be wary of anyone pressing you to pay for C3 work.",
-      options: [["Leave my number", "capture"], ["Ask something else", "ai"]],
+      options: [["Leave my number", "capture"], ["Back to the start", "start"]],
       service: "EICR / landlord certificate",
     },
     eicr3: {
@@ -126,7 +130,7 @@
     },
     ev2: {
       say: "The main homeowner grant closed in 2022. It's still open for flats and rented accommodation, and there's a separate landlord scheme. Will will tell you honestly whether you qualify rather than quoting as though you do.",
-      options: [["Leave my number", "capture"], ["Ask something else", "ai"]],
+      options: [["Leave my number", "capture"], ["Back to the start", "start"]],
       service: "EV charger",
     },
 
@@ -146,7 +150,7 @@
     },
     outbuilding: {
       say: "That's armoured cable buried at the right depth, proper protection at both ends, and usually a small consumer unit in the outbuilding. A garden office running heaters and computers needs sizing properly rather than hanging off a socket circuit.",
-      options: [["Leave my number", "capture"], ["Ask something else", "ai"]],
+      options: [["Leave my number", "capture"], ["Back to the start", "start"]],
       service: "Outdoor power",
     },
 
@@ -161,7 +165,7 @@
     },
     rewire2: {
       say: "Condition rather than age: rubber, lead or fabric-sheathed cable that cracks when flexed, no earth on the lighting circuits, or an EICR with several C2s where the repairs approach the cost of doing it once properly.",
-      options: [["Leave my number", "capture"], ["Ask something else", "ai"]],
+      options: [["Leave my number", "capture"], ["Back to the start", "start"]],
       service: "Rewire",
     },
     rewire3: {
@@ -171,14 +175,8 @@
     },
 
     other: {
-      say: "No problem — type your question below and I'll do my best, or leave your number and Will can ring you.",
-      options: [["Leave my number", "capture"]],
-      ai: true,
-    },
-    ai: {
-      say: "Go ahead — type your question below.",
-      options: [],
-      ai: true,
+      say: "No problem. Leave your number and Will will ring you back, or give him a call now — he'd rather talk it through than have you guess from a list.",
+      options: [["Leave my number", "capture"], ["Call " + PHONE, "call"]],
     },
     bye: {
       say: "Right you are. The number's " + PHONE + " whenever you need it.",
@@ -187,7 +185,7 @@
   };
 
   // ---------------------------------------------------------------------------------
-  var state = { open: false, node: null, service: "", history: [], busy: false, captured: false };
+  var state = { open: false, node: null, service: "", picked: [], captured: false };
   var el = {};
 
   function esc(s) {
@@ -214,14 +212,7 @@
         "</div>" +
         '<div class="ce-chat-log" id="ceLog" role="log" aria-live="polite"></div>' +
         '<div class="ce-chat-opts" id="ceOpts"></div>' +
-        '<form class="ce-chat-input" id="ceForm">' +
-          '<label class="ce-sr" for="ceText">Type your question</label>' +
-          '<input type="text" id="ceText" placeholder="Type a question…" autocomplete="off" maxlength="500">' +
-          '<button type="submit" aria-label="Send">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>' +
-          "</button>" +
-        "</form>" +
-        '<p class="ce-chat-foot">Automated assistant — it can be wrong. For anything urgent ring <a href="' + TEL + '">' + PHONE + "</a>.</p>" +
+        '<p class="ce-chat-foot">Can\'t see what you need? Ring Will on <a href="' + TEL + '">' + PHONE + "</a>.</p>" +
       "</div>";
     document.body.appendChild(w);
 
@@ -230,12 +221,9 @@
     el.close = document.getElementById("ceClose");
     el.log = document.getElementById("ceLog");
     el.opts = document.getElementById("ceOpts");
-    el.form = document.getElementById("ceForm");
-    el.text = document.getElementById("ceText");
 
     el.fab.addEventListener("click", toggle);
     el.close.addEventListener("click", toggle);
-    el.form.addEventListener("submit", onSubmit);
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && state.open) toggle();
     });
@@ -248,7 +236,6 @@
     document.querySelector(".ce-chat").classList.toggle("open", state.open);
     if (state.open) {
       if (!state.node) go("start");
-      setTimeout(function () { el.text.focus(); }, 60);
     }
   }
 
@@ -270,6 +257,7 @@
       b.textContent = o[0];
       b.addEventListener("click", function () {
         bubble("me", esc(o[0]));
+        if (o[1] !== "start" && o[1] !== "call") state.picked.push(o[0]);
         el.opts.innerHTML = "";
         if (o[1] === "call") { window.location.href = TEL; return; }
         if (o[1] === "capture") { showCapture(); return; }
@@ -321,9 +309,8 @@
       btn.textContent = "Sending…";
       var fd = new FormData(f);
       var notes = "Left a phone number via the website chat assistant." +
-        (state.history.length ? "\n\nWhat they typed:\n" + state.history
-          .filter(function (m) { return m.role === "user"; })
-          .map(function (m) { return "- " + m.content; }).join("\n") : "");
+        (state.picked.length ? "\n\nWhat they tapped through:\n" + state.picked
+          .map(function (t) { return "- " + t; }).join("\n") : "");
 
       fetch(FN_BASE + "/website-enquiry", {
         method: "POST",
@@ -349,43 +336,6 @@
     });
   }
 
-  /* ---- free text: AI fallback ---- */
-  function onSubmit(e) {
-    e.preventDefault();
-    var q = el.text.value.trim();
-    if (!q || state.busy) return;
-    el.text.value = "";
-    bubble("me", esc(q));
-    el.opts.innerHTML = "";
-    state.busy = true;
-    state.history.push({ role: "user", content: q });
-
-    var d = bubble("bot", "<span class='ce-dots'><i></i><i></i><i></i></span>");
-
-    fetch(FN_BASE + "/website-chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: q, history: state.history.slice(0, -1) }),
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var reply = (data && data.reply) ||
-          "Sorry — give Will a ring on " + PHONE + " and he'll answer that properly.";
-        d.innerHTML = esc(reply).replace(/(07734 157465)/g, "<a href='" + TEL + "'>$1</a>");
-        state.history.push({ role: "assistant", content: reply });
-        setOptions([["Leave my number", "capture"], ["Back to the start", "start"]]);
-      })
-      .catch(function () {
-        d.innerHTML = "I can't reach my notes just now. Ring <a href='" + TEL + "'>" + PHONE +
-          "</a> or email <a href='mailto:" + EMAIL + "'>" + EMAIL + "</a>.";
-        d.classList.add("ce-err");
-        setOptions([["Leave my number", "capture"]]);
-      })
-      .then(function () {
-        state.busy = false;
-        el.log.scrollTop = el.log.scrollHeight;
-      });
-  }
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", build);

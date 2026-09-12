@@ -1,19 +1,27 @@
 /* ============================== Custom Electrics CRM — design tokens ==============================
-   Palette sampled from the real Custom Electrics Ltd logo (deep teal ring + terracotta accent on a
-   pale mint ground). This file is the one place trade-specific branding lives visually — a future
-   deployment for a different trade swaps this file (and the wordmark markup in the header) and
-   nothing else in the layout needs to change. */
+   Palette sampled pixel-by-pixel from the real logo (logo.png) on 2026-09-12, replacing an earlier
+   approximation: #488B99 outer disc, #225361 script wordmark, #E58356 ring, #E6F0F2 fill. Kept
+   identical to the public website's site.css so both halves of customelectrics.co.uk match.
+
+   Note the two logo colours that are NOT used as text anywhere: #488B99 is only 3.87:1 against
+   white and #E58356 is 2.72:1, both below the 4.5:1 WCAG AA floor. So --teal is the deep #225361
+   (8.47:1). In dark mode --teal lightens to #5AA0AD (5.10:1 on --surface) rather than using the
+   raw logo teal, which would fail at 3.92:1.
+
+   This file is the one place trade-specific branding lives visually — a future deployment for a
+   different trade swaps this file (and the wordmark markup in the header) and nothing else in the
+   layout needs to change. */
 :root {
-  --teal: #1E4E54;
-  --teal-dark: #163940;
-  --orange: #E2915C;
-  --orange-soft: #FBE7D8;
-  --mint: #EAF3F1;
-  --bg: #F5FAF9;
+  --teal: #225361;
+  --teal-dark: #16353F;
+  --orange: #E58356;
+  --orange-soft: #FBE7DC;
+  --mint: #E6F0F2;
+  --bg: #F4F9FA;
   --surface: #FFFFFF;
   --ink: #16262A;
-  --ink-soft: #5C7278;
-  --line: #DCEAE7;
+  --ink-soft: #4E6369;
+  --line: #D8E7EA;
   --danger: #C4553F;
   --danger-soft: #FBE4DF;
   --good: #2E8B67;
@@ -25,22 +33,22 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --teal: #4A9199; --teal-dark: #0F2226; --orange: #F0A576; --orange-soft: #3A2A1E;
-    --mint: #16292A; --bg: #0E1A1B; --surface: #16292A; --ink: #EAF3F1; --ink-soft: #8FA8AC;
+    --teal: #5AA0AD; --teal-dark: #0E2429; --orange: #EE9A72; --orange-soft: #3A2A1E;
+    --mint: #16292A; --bg: #0D1A1D; --surface: #16292A; --ink: #E6F0F2; --ink-soft: #8FA8AC;
     --line: #223B3D; --danger: #E37A63; --danger-soft: #3A211C; --good: #5FC79A; --good-soft: #17332A;
     --shadow: 0 4px 18px rgba(0,0,0,0.35); --shadow-lg: 0 12px 34px rgba(0,0,0,0.45);
   }
 }
 :root[data-theme="dark"] {
-  --teal: #4A9199; --teal-dark: #0F2226; --orange: #F0A576; --orange-soft: #3A2A1E;
-  --mint: #16292A; --bg: #0E1A1B; --surface: #16292A; --ink: #EAF3F1; --ink-soft: #8FA8AC;
+  --teal: #5AA0AD; --teal-dark: #0E2429; --orange: #EE9A72; --orange-soft: #3A2A1E;
+  --mint: #16292A; --bg: #0D1A1D; --surface: #16292A; --ink: #E6F0F2; --ink-soft: #8FA8AC;
   --line: #223B3D; --danger: #E37A63; --danger-soft: #3A211C; --good: #5FC79A; --good-soft: #17332A;
   --shadow: 0 4px 18px rgba(0,0,0,0.35); --shadow-lg: 0 12px 34px rgba(0,0,0,0.45);
 }
 :root[data-theme="light"] {
-  --teal: #1E4E54; --teal-dark: #163940; --orange: #E2915C; --orange-soft: #FBE7D8;
-  --mint: #EAF3F1; --bg: #F5FAF9; --surface: #FFFFFF; --ink: #16262A; --ink-soft: #5C7278;
-  --line: #DCEAE7; --danger: #C4553F; --danger-soft: #FBE4DF; --good: #2E8B67; --good-soft: #E1F3EA;
+  --teal: #225361; --teal-dark: #16353F; --orange: #E58356; --orange-soft: #FBE7DC;
+  --mint: #E6F0F2; --bg: #F4F9FA; --surface: #FFFFFF; --ink: #16262A; --ink-soft: #4E6369;
+  --line: #D8E7EA; --danger: #C4553F; --danger-soft: #FBE4DF; --good: #2E8B67; --good-soft: #E1F3EA;
   --shadow: 0 4px 18px rgba(20,40,45,0.07); --shadow-lg: 0 12px 34px rgba(20,40,45,0.12);
 }
 
@@ -58,12 +66,11 @@ button { font: inherit; }
 /* ---------- Brand wordmark (used in header + login) ---------- */
 .brand-mark { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
 .brand-badge {
-  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
-  background: var(--teal); border: 3px solid var(--orange);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: var(--shadow);
+  /* Now an <img> of the real logo, which is already a circular badge with its own
+     terracotta ring -- so this only sizes it. The old rule drew an approximation:
+     a teal disc with an orange border and a bolt glyph inside. */
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: block;
 }
-.brand-badge svg { width: 18px; height: 18px; }
 .brand-mark .brand-name { display: flex; flex-direction: column; line-height: 1.15; }
 .brand-mark .brand-script {
   font-family: "Dancing Script", cursive; font-weight: 700; font-size: 1.3rem; color: var(--teal); margin: 0;

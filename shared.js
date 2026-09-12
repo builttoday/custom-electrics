@@ -28,11 +28,7 @@ const NAV_ITEMS = [
 function brandMarkHtml() {
   return `
     <a class="brand-mark" href="dashboard.html">
-      <span class="brand-badge">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" fill="#EAF3F1"/>
-        </svg>
-      </span>
+      <img class="brand-badge" src="logo.png" alt="" width="40" height="40">
       <span class="brand-name">
         <span class="brand-script">Custom</span>
         <span class="brand-caption">Electrics</span>

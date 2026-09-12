@@ -83,7 +83,7 @@ function buildHome() {
       <p class="lede">Tell me what you need and I'll come and look. No charge for the visit.</p>
       <ul class="tick-list">
         <li>${icon("check")} Fixed price agreed before work starts</li>
-        <li>${icon("check")} Full certification and Building Control notification</li>
+        <li>${icon("check")} Full test certificate on every job</li>
         <li>${icon("check")} Honest answer on whether it actually needs doing</li>
         <li>${icon("check")} Same-day response to anything dangerous</li>
       </ul>
@@ -400,6 +400,7 @@ ${trustBar()}
 
     <h2>The paperwork matters</h2>
     <p>Every job leaves with the right certificate: an Electrical Installation Certificate for new circuits and consumer units, a Minor Works Certificate for alterations, and an EICR where an inspection is what you asked for.</p>
+    <p>I am not registered with a competent person scheme, so I do not self-certify notifiable work. Instead it goes through your council's Building Control: I submit the building notice on your behalf before starting, the council inspects, and the council issues the completion certificate. It is the same legal outcome by a different route, and I would rather be straight about which route it is than let you find out afterwards. Most jobs are not notifiable at all &mdash; extra sockets, light fittings, fault repairs and EICRs all fall outside it.</p>
     <p>This is the bit people discover matters years later, usually when they sell the house and a solicitor asks for certificates for work done. Keep them somewhere safe &mdash; and if you have lost one I issued, ask and I will look it up.</p>
 
     <h2>No job too small</h2>

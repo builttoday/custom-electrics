@@ -71,7 +71,7 @@ const SERVICES = [
     nav: "Fuse boards & consumer units",
     card: "Old fuse box swapped for a modern consumer unit with RCBO protection on every circuit, tested and certified in a day.",
     title: "Fuse Box & Consumer Unit Replacement in Pudsey & Leeds",
-    desc: "Old fuse box replaced with a modern RCBO consumer unit, usually in a day. Fixed price, full certificate and Building Control notification. Pudsey, Leeds & Bradford.",
+    desc: "Old fuse box replaced with a modern RCBO consumer unit, usually in a day. Fixed price, full test certificate and the Building Control side handled. Leeds & Bradford.",
     h1: "Fuse box &amp; consumer unit upgrades",
     intro: "If your fuse board still has rewireable fuses, or trip switches with no test button, it predates the current wiring regulations and will not cut the power fast enough to protect someone getting a shock. Replacing it is the single biggest safety improvement most houses can have, and it is normally one day's work.",
     body: `
@@ -91,13 +91,14 @@ const SERVICES = [
       <p>A straightforward swap is a single day, with the power off for most of it. You get a fixed price in writing before I start — if the pre-checks turn up remedial work, I tell you what it is, what it costs and whether it genuinely needs doing now or can wait.</p>
 
       <h2>The paperwork</h2>
-      <p>Replacing a consumer unit is notifiable work under <strong>Part P</strong> of the Building Regulations, so it has to be registered with Building Control. You get a full Electrical Installation Certificate with the test results for every circuit — keep it, because it is what a solicitor asks for when you sell the house. I will talk you through how the Building Control side is handled before the job starts.</p>
+      <p>Replacing a consumer unit is notifiable work under <strong>Part P</strong> of the Building Regulations, so it has to be registered with Building Control. You get a full Electrical Installation Certificate with the test results for every circuit — keep it, because it is what a solicitor asks for when you sell the house.</p>
+      <p>Because I am not registered with a competent person scheme, notifiable work goes through your council's Building Control rather than being self-certified. In practice that means I submit the building notice to the council on your behalf before starting, they inspect the work, and they issue the completion certificate. There is a council fee for that, and I will tell you what it is at the quote stage so it is in your budget from the start rather than a surprise at the end.</p>
     `,
     faqs: [
       { q: "How long will my power be off?", a: "Most of the working day for a standard swap. I will give you a realistic window before the day so you can plan around home working, freezers or anyone in the house who needs the power on." },
       { q: "Do I legally have to upgrade my fuse box?", a: "No. There is no law forcing you to replace a working fuse board in your own home. But an old board without RCD protection will be flagged on an EICR, and most landlord and mortgage-related inspections will pick it up." },
       { q: "Will a new consumer unit stop my lights tripping?", a: "Usually, but not always — it depends what is causing it. With RCBOs a fault is isolated to one circuit instead of tripping the house, and it becomes obvious which circuit is at fault. If there is an underlying fault on a circuit, that still needs fixing, which is why I test everything before quoting." },
-      { q: "Is the certificate included?", a: "Yes. The Electrical Installation Certificate and the Building Control notification are part of the job, not an extra." },
+      { q: "Is the certificate included?", a: "The Electrical Installation Certificate is part of the job, not an extra. A consumer unit swap is also notifiable, and I am not in a competent person scheme, so it goes through your council's Building Control: I submit the building notice for you, they inspect, and they issue the completion certificate. The council charges a fee for that, which I will tell you about before you commit." },
     ],
   },
   {
@@ -128,7 +129,8 @@ const SERVICES = [
       <p>You get the work staged so the kitchen and at least one lighting circuit are live every night. If you are living in the house through it, say so at the quote stage and I will plan around it.</p>
 
       <h2>Certification</h2>
-      <p>A rewire is notifiable under Part P of the Building Regulations. You get a full Electrical Installation Certificate with every circuit's test results and a schedule of what is on each circuit, and I will explain how the Building Control side is handled before anything starts.</p>
+      <p>A rewire is notifiable under Part P of the Building Regulations. You get a full Electrical Installation Certificate with every circuit's test results and a schedule of what is on each circuit.</p>
+      <p>Because I am not registered with a competent person scheme, notifiable work goes through your council's Building Control rather than being self-certified. In practice that means I submit the building notice to the council on your behalf before starting, they inspect the work, and they issue the completion certificate. There is a council fee for that, and I will tell you what it is at the quote stage so it is in your budget from the start rather than a surprise at the end.</p>
     `,
     faqs: [
       { q: "Can I live in the house during a rewire?", a: "Usually yes, if the work is staged. It is dusty and disruptive, and each room is out of action while it is being done, but I plan it so you have power and lighting each evening. Tell me before I quote if anyone in the house works from home or needs power for medical equipment." },
@@ -203,6 +205,7 @@ const SERVICES = [
         <li>Tidy cable routing — agreed with you before a single clip goes in</li>
         <li>Commissioning, app setup and a walk-through of how to actually use it</li>
         <li>Electrical Installation Certificate, and the DNO notified as required</li>
+        <li>The Building Control side handled — a new charger circuit is notifiable, and I submit the building notice for you</li>
       </ul>
 
       <h2>Which charger</h2>
@@ -285,13 +288,14 @@ const SERVICES = [
       <p>A single socket is a perfectly good reason to ring. Small jobs get quoted and done like any other, and if several small things have been building up it is almost always cheaper to have them done in one visit than one at a time.</p>
 
       <h2>Certification</h2>
-      <p>New circuits get a full Electrical Installation Certificate. Alterations to existing circuits get a Minor Electrical Installation Works Certificate. Some work — a new circuit, or work in a bathroom — is notifiable under Part P, and I will tell you up front when a job falls into that category.</p>
+      <p>New circuits get a full Electrical Installation Certificate. Alterations to existing circuits get a Minor Electrical Installation Works Certificate. Most small jobs — an extra socket, swapping a light fitting — are not notifiable at all.</p>
+      <p>Some work is: a brand new circuit, or anything inside a bathroom. I will tell you up front when a job falls into that category. Because I am not registered with a competent person scheme, notifiable work goes through your council's Building Control rather than being self-certified. In practice that means I submit the building notice to the council on your behalf before starting, they inspect the work, and they issue the completion certificate. There is a council fee for that, and I will tell you what it is at the quote stage so it is in your budget from the start rather than a surprise at the end.</p>
     `,
     faqs: [
       { q: "Is one socket worth calling someone out for?", a: "Yes. It is a small job and priced as one. If you have a list of other bits that have been nagging you, mention them when you ring — doing several in one visit costs less than several separate visits." },
       { q: "Why do my LED downlights flicker?", a: "Nearly always a dimmer not rated for LED loads, or a mix of lamp types on one dimmer. It is a cheap fix once diagnosed and does not mean anything is wrong with the wiring." },
       { q: "Can you run power to my shed or garden office?", a: "Yes. It needs armoured cable buried at the correct depth, proper protection at both ends and usually a small consumer unit in the outbuilding. A garden office running heaters and computers needs sizing properly rather than being hung off a socket circuit." },
-      { q: "Do I need a certificate for a new socket?", a: "An alteration to an existing circuit gets a Minor Works Certificate. A brand new circuit gets a full Electrical Installation Certificate, and anything notifiable goes to Building Control. You get the paperwork either way." },
+      { q: "Do I need a certificate for a new socket?", a: "An alteration to an existing circuit gets a Minor Works Certificate, and that is not notifiable work — no council involvement, no extra fee. A brand new circuit gets a full Electrical Installation Certificate and is notifiable, so it goes through Building Control. You get the paperwork either way." },
     ],
   },
 ];

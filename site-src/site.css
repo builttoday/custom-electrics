@@ -1,15 +1,19 @@
-/* ===================== Custom Electrics Ltd — public website =====================
-   Standalone from the CRM's shared.css on purpose: public pages must not pull in
-   supabase-js or the app shell. Same brand tokens as the CRM so the site and the
-   app read as one business. */
+/* Brand tokens sampled directly from the real Custom Electrics logo (logo.png):
+   #488B99 outer disc, #225361 script wordmark, #E58356 ring, #E6F0F2 inner disc.
+
+   Two of those cannot be used as-is for text. #488B99 gives only 3.87:1 against
+   white and #E58356 only 2.72:1, both below the 4.5:1 WCAG AA minimum for body
+   text. So the deep teal #225361 (8.47:1) is the primary, #3A7885 (4.99:1) is the
+   link colour, and #B85628 (4.77:1) is the accent text colour. The pure logo
+   values are kept for fills, rings and large decorative work where they belong. */
 :root{
-  --teal:#1E4E54; --teal-dark:#123035; --teal-mid:#2A6B73;
-  --orange:#E2915C; --orange-dark:#C9733C; --orange-soft:#FBE7D8;
-  --mint:#EAF3F1; --bg:#FFFFFF; --bg-alt:#F5FAF9; --surface:#FFFFFF;
-  --ink:#16262A; --ink-soft:#55696E; --line:#DCEAE7;
+  --teal:#225361; --teal-dark:#16353F; --teal-mid:#3A7885; --teal-light:#488B99;
+  --orange:#E58356; --orange-dark:#B85628; --orange-soft:#FBE7DC;
+  --mint:#E6F0F2; --bg:#FFFFFF; --bg-alt:#F4F9FA; --surface:#FFFFFF;
+  --ink:#16262A; --ink-soft:#4E6369; --line:#D8E7EA;
   --good:#2E8B67;
-  --shadow:0 4px 18px rgba(20,40,45,.07);
-  --shadow-lg:0 14px 40px rgba(20,40,45,.13);
+  --shadow:0 4px 18px rgba(22,53,63,.07);
+  --shadow-lg:0 14px 40px rgba(22,53,63,.13);
   --radius:14px; --wrap:1120px;
 }
 *{box-sizing:border-box}
@@ -46,9 +50,8 @@ img{max-width:100%;height:auto}
   backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .header-inner{display:flex;align-items:center;gap:20px;min-height:70px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink);flex-shrink:0}
-.brand-badge{width:38px;height:38px;border-radius:50%;background:var(--teal);
-  display:grid;place-items:center;flex-shrink:0;border:2px solid var(--orange)}
-.brand-badge svg{width:19px;height:19px;display:block}
+.brand-logo{width:46px;height:46px;border-radius:50%;display:block;flex-shrink:0}
+.site-footer .brand-logo{width:54px;height:54px;margin-bottom:12px}
 .brand-text{display:flex;flex-direction:column;line-height:1}
 .brand-script{font-family:"Dancing Script",cursive;font-weight:700;font-size:1.42rem;color:var(--teal)}
 .brand-caption{font-family:"Poppins",sans-serif;font-weight:600;font-size:.62rem;

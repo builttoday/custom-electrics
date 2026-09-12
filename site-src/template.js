@@ -41,7 +41,7 @@ function header(path) {
   return `<header class="site-header">
   <div class="wrap header-inner">
     <a class="brand" href="/" aria-label="${esc(BUSINESS.legalName)} home">
-      <span class="brand-badge">${icon("bolt")}</span>
+      <img class="brand-logo" src="/logo.png" alt="" width="46" height="46">
       <span class="brand-text">
         <span class="brand-script">Custom</span>
         <span class="brand-caption">Electrics</span>
@@ -60,7 +60,7 @@ function header(path) {
 function trustBar() {
   const items = [
     ["cert", "City &amp; Guilds qualified"],
-    ["shield", "Part P registered"],
+    ["bolt", "No job too small"],
     ["check", "Fully insured"],
     ["pin", "Based in Pudsey"],
   ];
@@ -88,6 +88,7 @@ function footer() {
   <div class="wrap">
     <div class="footer-grid">
       <div>
+        <img class="brand-logo" src="/logo.png" alt="" width="54" height="54">
         <span class="brand-text">
           <span class="brand-script" style="font-size:1.5rem">Custom</span>
           <span class="brand-caption">Electrics</span>
@@ -184,6 +185,8 @@ function businessSchema() {
     sameAs: [BUSINESS.facebook, BUSINESS.ratedPeople],
     foundingDate: BUSINESS.founded,
     priceRange: "££",
+    image: BUSINESS.domain + "/logo.png",
+    logo: BUSINESS.domain + "/logo.png",
   };
   if (BUSINESS.phone) node.telephone = BUSINESS.phone;
   return node;
@@ -245,15 +248,19 @@ function render(page) {
 <title>${esc(page.title)}</title>
 <meta name="description" content="${esc(page.desc)}">
 ${page.noindex ? '<meta name="robots" content="noindex, follow">' : `<link rel="canonical" href="${canonical}">`}
-<meta name="theme-color" content="#1E4E54">
+<meta name="theme-color" content="#225361">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="${esc(BUSINESS.legalName)}">
 <meta property="og:title" content="${esc(page.title)}">
 <meta property="og:description" content="${esc(page.desc)}">
 <meta property="og:url" content="${canonical}">
 <meta property="og:locale" content="en_GB">
-<meta name="twitter:card" content="summary">
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='47' fill='%231E4E54' stroke='%23E2915C' stroke-width='6'/%3E%3Cpath d='M56 18 26 56h24l-4 26 30-38H52l4-26Z' fill='%23EAF3F1'/%3E%3C/svg%3E">
+<meta property="og:image" content="${BUSINESS.domain}/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="/logo.png">
+<link rel="apple-touch-icon" href="/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">

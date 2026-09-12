@@ -118,7 +118,7 @@ ${trustBar()}
         <a class="btn btn-ghost" href="/about/">More about how I work</a>
       </div>
       <div class="grid" style="gap:16px">
-        <div class="card"><span class="card-icon">${icon("cert")}</span><h3>Qualified and certified</h3><p>City &amp; Guilds qualified and Part P registered. Every job gets the right certificate, and notifiable work goes to Building Control.</p></div>
+        <div class="card"><span class="card-icon">${icon("cert")}</span><h3>Qualified and certified</h3><p>City &amp; Guilds qualified and fully insured. Every job leaves with the right certificate for the work that was done.</p></div>
         <div class="card"><span class="card-icon">${icon("clock")}</span><h3>Turns up when I say</h3><p>If I'm running late you get a message, not silence. Anything genuinely dangerous gets seen the same day.</p></div>
       </div>
     </div>
@@ -368,7 +368,7 @@ function buildAbout() {
   addPage({
     path: "/about/",
     title: "About Custom Electrics Ltd | Electrician in Pudsey",
-    desc: "Custom Electrics Ltd is a one-man domestic electrical business run by Will from Pudsey, West Yorkshire. City & Guilds qualified, Part P registered, fully insured.",
+    desc: "Custom Electrics Ltd is a one-man domestic electrical business run by Will from Pudsey, West Yorkshire. City & Guilds qualified and fully insured. No job too small.",
     trail: [{ name: "Home", href: "/" }, { name: "About", href: "/about/" }],
     body: `
 <section class="hero">
@@ -391,13 +391,12 @@ ${trustBar()}
     <h2>Qualifications</h2>
     <ul>
       <li><strong>City &amp; Guilds qualified</strong> domestic electrician</li>
-      <li><strong>Part P registered</strong> &mdash; notifiable work is certified and notified to Building Control</li>
       <li><strong>Fully insured</strong></li>
       <li>ID, address, credit and fraud checked by Rated People, where I have been a member for four years</li>
     </ul>
 
     <h2>The paperwork matters</h2>
-    <p>Every job leaves with the right certificate: an Electrical Installation Certificate for new circuits and consumer units, a Minor Works Certificate for alterations, and an EICR where an inspection is what you asked for. Notifiable work is notified to Building Control and you get the compliance certificate in the post.</p>
+    <p>Every job leaves with the right certificate: an Electrical Installation Certificate for new circuits and consumer units, a Minor Works Certificate for alterations, and an EICR where an inspection is what you asked for.</p>
     <p>This is the bit people discover matters years later, usually when they sell the house and a solicitor asks for certificates for work done. Keep them somewhere safe &mdash; and if you have lost one I issued, ask and I will look it up.</p>
 
     <h2>No job too small</h2>

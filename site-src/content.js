@@ -90,7 +90,7 @@ const SERVICES = [
       <p>A straightforward swap is a single day, with the power off for most of it. You get a fixed price in writing before I start — if the pre-checks turn up remedial work, I tell you what it is, what it costs and whether it genuinely needs doing now or can wait.</p>
 
       <h2>The paperwork</h2>
-      <p>Replacing a consumer unit is notifiable work under <strong>Part P</strong> of the Building Regulations. You get an Electrical Installation Certificate, and the work is notified to Building Control — you will receive the compliance certificate in the post. Keep it: it is what a solicitor asks for when you sell the house.</p>
+      <p>Replacing a consumer unit is notifiable work under <strong>Part P</strong> of the Building Regulations, so it has to be registered with Building Control. You get a full Electrical Installation Certificate with the test results for every circuit — keep it, because it is what a solicitor asks for when you sell the house. I will talk you through how the Building Control side is handled before the job starts.</p>
     `,
     faqs: [
       { q: "How long will my power be off?", a: "Most of the working day for a standard swap. I will give you a realistic window before the day so you can plan around home working, freezers or anyone in the house who needs the power on." },
@@ -127,7 +127,7 @@ const SERVICES = [
       <p>You get the work staged so the kitchen and at least one lighting circuit are live every night. If you are living in the house through it, say so at the quote stage and I will plan around it.</p>
 
       <h2>Certification</h2>
-      <p>A rewire is notifiable under Part P. You get a full Electrical Installation Certificate with every circuit's test results, a schedule of what is on each circuit, and Building Control notification.</p>
+      <p>A rewire is notifiable under Part P of the Building Regulations. You get a full Electrical Installation Certificate with every circuit's test results and a schedule of what is on each circuit, and I will explain how the Building Control side is handled before anything starts.</p>
     `,
     faqs: [
       { q: "Can I live in the house during a rewire?", a: "Usually yes, if the work is staged. It is dusty and disruptive, and each room is out of action while it is being done, but I plan it so you have power and lighting each evening. Tell me before I quote if anyone in the house works from home or needs power for medical equipment." },
@@ -201,7 +201,7 @@ const SERVICES = [
         <li>Dedicated circuit with the correct RCD type (Type A or B depending on the unit)</li>
         <li>Tidy cable routing — agreed with you before a single clip goes in</li>
         <li>Commissioning, app setup and a walk-through of how to actually use it</li>
-        <li>Electrical Installation Certificate and DNO notification</li>
+        <li>Electrical Installation Certificate, and the DNO notified as required</li>
       </ul>
 
       <h2>Which charger</h2>
@@ -284,7 +284,7 @@ const SERVICES = [
       <p>A single socket is a perfectly good reason to ring. Small jobs get quoted and done like any other, and if several small things have been building up it is almost always cheaper to have them done in one visit than one at a time.</p>
 
       <h2>Certification</h2>
-      <p>New circuits get a full Electrical Installation Certificate. Alterations to existing circuits get a Minor Electrical Installation Works Certificate. Anything notifiable — a new circuit, or work in a bathroom — is notified to Building Control.</p>
+      <p>New circuits get a full Electrical Installation Certificate. Alterations to existing circuits get a Minor Electrical Installation Works Certificate. Some work — a new circuit, or work in a bathroom — is notifiable under Part P, and I will tell you up front when a job falls into that category.</p>
     `,
     faqs: [
       { q: "Is one socket worth calling someone out for?", a: "Yes. It is a small job and priced as one. If you have a list of other bits that have been nagging you, mention them when you ring — doing several in one visit costs less than several separate visits." },

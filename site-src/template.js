@@ -287,6 +287,7 @@ ${callBar()}
 })();
 </script>
 ${page.scripts || ""}
+<script src="/chat.js" defer></script>
 </body>
 </html>`;
 }

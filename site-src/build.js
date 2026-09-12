@@ -610,9 +610,11 @@ function writeAll() {
     console.log("  " + path.relative(ROOT, out).replace(/\\/g, "/"));
   }
 
-  // stylesheet
-  fs.copyFileSync(path.join(__dirname, "site.css"), path.join(ROOT, "site.css"));
-  console.log("  site.css");
+  // static assets that live in site-src/ and are copied out verbatim
+  for (const asset of ["site.css", "chat.js"]) {
+    fs.copyFileSync(path.join(__dirname, asset), path.join(ROOT, asset));
+    console.log("  " + asset);
+  }
 
   // sitemap — public pages only; the 404 and the CRM are excluded on purpose
   const today = new Date().toISOString().slice(0, 10);

@@ -92,13 +92,13 @@ const SERVICES = [
 
       <h2>The paperwork</h2>
       <p>Replacing a consumer unit is notifiable work under <strong>Part P</strong> of the Building Regulations, so it has to be registered with Building Control. You get a full Electrical Installation Certificate with the test results for every circuit — keep it, because it is what a solicitor asks for when you sell the house.</p>
-      <p>Because I am not registered with a competent person scheme, notifiable work goes through your council's Building Control rather than being self-certified. In practice that means I submit the building notice to the council on your behalf before starting, they inspect the work, and they issue the completion certificate. There is a council fee for that, and I will tell you what it is at the quote stage so it is in your budget from the start rather than a surprise at the end.</p>
+      <p>Work like this is notifiable, which means it has to be registered with Building Control. I take care of that side for you: the building notice goes in to your council before I start, they inspect the work, and they issue the completion certificate to sit alongside your Electrical Installation Certificate. The council charges a fee for the inspection, and I will tell you exactly what it is when I quote, so it is in the price from the start rather than a surprise at the end.</p>
     `,
     faqs: [
       { q: "How long will my power be off?", a: "Most of the working day for a standard swap. I will give you a realistic window before the day so you can plan around home working, freezers or anyone in the house who needs the power on." },
       { q: "Do I legally have to upgrade my fuse box?", a: "No. There is no law forcing you to replace a working fuse board in your own home. But an old board without RCD protection will be flagged on an EICR, and most landlord and mortgage-related inspections will pick it up." },
       { q: "Will a new consumer unit stop my lights tripping?", a: "Usually, but not always — it depends what is causing it. With RCBOs a fault is isolated to one circuit instead of tripping the house, and it becomes obvious which circuit is at fault. If there is an underlying fault on a circuit, that still needs fixing, which is why I test everything before quoting." },
-      { q: "Is the certificate included?", a: "The Electrical Installation Certificate is part of the job, not an extra. A consumer unit swap is also notifiable, and I am not in a competent person scheme, so it goes through your council's Building Control: I submit the building notice for you, they inspect, and they issue the completion certificate. The council charges a fee for that, which I will tell you about before you commit." },
+      { q: "Is the certificate included?", a: "Yes. The Electrical Installation Certificate is part of the job, not an extra. A consumer unit swap is also notifiable, so it gets registered with Building Control: I put the building notice in, the council inspects, and they issue the completion certificate. The council charges a fee for that and I will tell you what it is before you commit to anything." },
     ],
   },
   {
@@ -130,7 +130,7 @@ const SERVICES = [
 
       <h2>Certification</h2>
       <p>A rewire is notifiable under Part P of the Building Regulations. You get a full Electrical Installation Certificate with every circuit's test results and a schedule of what is on each circuit.</p>
-      <p>Because I am not registered with a competent person scheme, notifiable work goes through your council's Building Control rather than being self-certified. In practice that means I submit the building notice to the council on your behalf before starting, they inspect the work, and they issue the completion certificate. There is a council fee for that, and I will tell you what it is at the quote stage so it is in your budget from the start rather than a surprise at the end.</p>
+      <p>Work like this is notifiable, which means it has to be registered with Building Control. I take care of that side for you: the building notice goes in to your council before I start, they inspect the work, and they issue the completion certificate to sit alongside your Electrical Installation Certificate. The council charges a fee for the inspection, and I will tell you exactly what it is when I quote, so it is in the price from the start rather than a surprise at the end.</p>
     `,
     faqs: [
       { q: "Can I live in the house during a rewire?", a: "Usually yes, if the work is staged. It is dusty and disruptive, and each room is out of action while it is being done, but I plan it so you have power and lighting each evening. Tell me before I quote if anyone in the house works from home or needs power for medical equipment." },
@@ -205,7 +205,7 @@ const SERVICES = [
         <li>Tidy cable routing — agreed with you before a single clip goes in</li>
         <li>Commissioning, app setup and a walk-through of how to actually use it</li>
         <li>Electrical Installation Certificate, and the DNO notified as required</li>
-        <li>The Building Control side handled — a new charger circuit is notifiable, and I submit the building notice for you</li>
+        <li>Building Control registration handled — a charger is a new circuit, so it is notifiable, and I put the building notice in for you</li>
       </ul>
 
       <h2>Which charger</h2>
@@ -289,7 +289,7 @@ const SERVICES = [
 
       <h2>Certification</h2>
       <p>New circuits get a full Electrical Installation Certificate. Alterations to existing circuits get a Minor Electrical Installation Works Certificate. Most small jobs — an extra socket, swapping a light fitting — are not notifiable at all.</p>
-      <p>Some work is: a brand new circuit, or anything inside a bathroom. I will tell you up front when a job falls into that category. Because I am not registered with a competent person scheme, notifiable work goes through your council's Building Control rather than being self-certified. In practice that means I submit the building notice to the council on your behalf before starting, they inspect the work, and they issue the completion certificate. There is a council fee for that, and I will tell you what it is at the quote stage so it is in your budget from the start rather than a surprise at the end.</p>
+      <p>Some work is: a brand new circuit, or anything inside a bathroom. I will tell you up front when a job falls into that category. Work like this is notifiable, which means it has to be registered with Building Control. I take care of that side for you: the building notice goes in to your council before I start, they inspect the work, and they issue the completion certificate to sit alongside your Electrical Installation Certificate. The council charges a fee for the inspection, and I will tell you exactly what it is when I quote, so it is in the price from the start rather than a surprise at the end.</p>
     `,
     faqs: [
       { q: "Is one socket worth calling someone out for?", a: "Yes. It is a small job and priced as one. If you have a list of other bits that have been nagging you, mention them when you ring — doing several in one visit costs less than several separate visits." },

@@ -91,7 +91,7 @@
     /* The honest answer on notification. This is the one topic where a generic chatbot
        would confidently say the wrong thing, so it is scripted rather than left to the AI. */
     notify: {
-      say: "You get a full Electrical Installation Certificate with the test results. Will isn't in a competent person scheme, so he doesn't self-certify — notifiable work goes through your council's Building Control instead: he submits the building notice for you, they inspect, and they issue the completion certificate. There's a council fee, and he'll tell you what it is before you commit.",
+      say: "You get a full Electrical Installation Certificate with all the test results. A new board is also notifiable, so it gets registered with Building Control — Will puts the building notice in before starting, the council inspects, and they issue the completion certificate. There's a council fee for that, and he'll tell you what it is before you commit to anything.",
       options: [["Which work is notifiable?", "notify2"], ["Leave my number", "capture"]],
     },
     notify2: {

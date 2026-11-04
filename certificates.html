@@ -2768,16 +2768,17 @@ const PDF_DANGER = [196, 85, 63];
 function generateCertificatePdf(formType, formData) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const margin = 16;
+  const margin = PDF_SIDE.left;
+  const marginR = PDF_SIDE.right;
   const pageWidth = 210;
   const pageHeight = 297;
-  const contentWidth = pageWidth - margin * 2;
+  const contentWidth = pageWidth - margin - marginR;
   const HEADER_H = 26;
   const FOOTER_H = 14;
   let y = HEADER_H + 10;
 
   function ensureRoom(need) {
-    if (y + need > pageHeight - FOOTER_H) { doc.addPage(); y = margin; }
+    if (y + need > pageHeight - FOOTER_H) { doc.addPage(); y = PDF_SIDE.top; }
   }
   function sectionHeading(text) {
     ensureRoom(10);
@@ -2845,29 +2846,20 @@ function generateCertificatePdf(formType, formData) {
     }
   }
   function header() {
-    doc.setFillColor(...PDF_TEAL);
-    doc.rect(0, 0, pageWidth, HEADER_H, "F");
-    doc.setFillColor(...PDF_ORANGE);
-    doc.rect(0, HEADER_H, pageWidth, 1.2, "F");
-    doc.setFont(undefined, "bold").setFontSize(15).setTextColor(255, 255, 255);
-    doc.text("Custom Electrics", margin, 12);
-    doc.setFont(undefined, "normal").setFontSize(8).setTextColor(234, 243, 241);
-    doc.text("Certified Domestic & Commercial Electrical Contractor", margin, 18);
-    doc.setFont(undefined, "bold").setFontSize(11).setTextColor(255, 255, 255);
-    doc.text(FORM_LABELS[formType] || formType, pageWidth - margin, 12, { align: "right" });
-    doc.setFont(undefined, "normal").setFontSize(8).setTextColor(234, 243, 241);
-    doc.text("BS 7671 -- IET Wiring Regulations", pageWidth - margin, 18, { align: "right" });
+    doc.setFont(undefined, "bold").setFontSize(15).setTextColor(34, 83, 97);
+    doc.text(doc.splitTextToSize(FORM_LABELS[formType] || formType, contentWidth), margin, 20);
+    doc.setFont(undefined, "normal").setFontSize(8).setTextColor(...PDF_INK_SOFT);
+    doc.text("BS 7671 -- IET Wiring Regulations", margin, 26);
   }
   function footers() {
     const total = doc.internal.getNumberOfPages();
     for (let i = 1; i <= total; i++) {
       doc.setPage(i);
       doc.setDrawColor(220, 234, 231);
-      doc.line(margin, pageHeight - FOOTER_H, pageWidth - margin, pageHeight - FOOTER_H);
+      doc.line(margin, pageHeight - FOOTER_H, pageWidth - marginR, pageHeight - FOOTER_H);
       doc.setFont(undefined, "normal").setFontSize(7.5).setTextColor(...PDF_INK_SOFT);
-      doc.text("Custom Electrics Ltd", margin, pageHeight - FOOTER_H + 6);
-      doc.text(new Date().toLocaleDateString("en-GB"), pageWidth / 2, pageHeight - FOOTER_H + 6, { align: "center" });
-      doc.text(`Page ${i} of ${total}`, pageWidth - margin, pageHeight - FOOTER_H + 6, { align: "right" });
+      doc.text(new Date().toLocaleDateString("en-GB"), margin, pageHeight - FOOTER_H + 6);
+      doc.text(`Page ${i} of ${total}`, pageWidth - marginR, pageHeight - FOOTER_H + 6, { align: "right" });
     }
   }
   // Shared by EIC and EICR -- both have an identical per-circuit test-results schedule.
@@ -2889,7 +2881,7 @@ function generateCertificatePdf(formType, formData) {
     if (!rows.length) { paragraph("No circuits recorded."); return; }
     ensureRoom(20);
     doc.autoTable({
-      startY: y, margin: { left: margin, right: margin }, tableWidth: contentWidth,
+      startY: y, margin: { left: margin, right: marginR }, tableWidth: contentWidth,
       head: [["Ckt", "Description", "Device", "CSA L/cpc", "r1/rn/r2", "R1+R2/R2", "Ins L-L/L-E", "Zs", "Polarity"]],
       body: rows,
       theme: "grid",
@@ -2918,7 +2910,7 @@ function generateCertificatePdf(formType, formData) {
       });
     });
     doc.autoTable({
-      startY: y, margin: { left: margin, right: margin }, tableWidth: contentWidth,
+      startY: y, margin: { left: margin, right: marginR }, tableWidth: contentWidth,
       head: [["Item", "Outcome"]], body: rows,
       theme: "grid", columnStyles: { 1: { halign: "center", cellWidth: 55 } },
       headStyles: { fillColor: PDF_TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
@@ -2948,7 +2940,7 @@ function generateCertificatePdf(formType, formData) {
     if (!rows.length) { paragraph("No observations recorded -- no defects or departures noted."); return; }
     ensureRoom(20);
     doc.autoTable({
-      startY: y, margin: { left: margin, right: margin }, tableWidth: contentWidth,
+      startY: y, margin: { left: margin, right: marginR }, tableWidth: contentWidth,
       head: [["#", "Observation", "Classification", "Location"]], body: rows,
       theme: "grid", columnStyles: { 0: { cellWidth: 8 }, 2: { cellWidth: 42 } },
       headStyles: { fillColor: PDF_TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
@@ -3013,7 +3005,7 @@ function generateCertificatePdf(formType, formData) {
       ["SPD functionality confirmed", d.has_spd ? (d.spd_functionality_confirmed ? "Yes" : "No") : "N/A"],
     ];
     doc.autoTable({
-      startY: y, margin: { left: margin, right: margin }, tableWidth: contentWidth,
+      startY: y, margin: { left: margin, right: marginR }, tableWidth: contentWidth,
       head: [["Test", "Result"]], body: testRows,
       theme: "grid",
       headStyles: { fillColor: PDF_TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
@@ -3177,6 +3169,7 @@ function generateCertificatePdf(formType, formData) {
   }
 
   footers();
+  drawSideLetterhead(doc);
   return doc;
 }
 

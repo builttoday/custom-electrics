@@ -538,26 +538,19 @@ function pdfQuoteFilename(record, client) {
 function generateQuotePdf(record, client) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const margin = 16;
+  const margin = PDF_SIDE.left;
+  const marginR = PDF_SIDE.right;
   const pageWidth = 210;
   const pageHeight = 297;
-  const contentWidth = pageWidth - margin * 2;
+  const contentWidth = pageWidth - margin - marginR;
   const HEADER_H = 26;
   const FOOTER_H = 14;
   let y = HEADER_H + 12;
 
-  doc.setFillColor(...PDF_TEAL);
-  doc.rect(0, 0, pageWidth, HEADER_H, "F");
-  doc.setFillColor(...PDF_ORANGE);
-  doc.rect(0, HEADER_H, pageWidth, 1.2, "F");
-  doc.setFont(undefined, "bold").setFontSize(15).setTextColor(255, 255, 255);
-  doc.text("Custom Electrics", margin, 12);
-  doc.setFont(undefined, "normal").setFontSize(8).setTextColor(234, 243, 241);
-  doc.text("Certified Domestic & Commercial Electrical Contractor", margin, 18);
-  doc.setFont(undefined, "bold").setFontSize(15).setTextColor(255, 255, 255);
-  doc.text("QUOTE", pageWidth - margin, 12, { align: "right" });
-  doc.setFont(undefined, "normal").setFontSize(8).setTextColor(234, 243, 241);
-  doc.text(record.quote_number || "", pageWidth - margin, 18, { align: "right" });
+  doc.setFont(undefined, "bold").setFontSize(22).setTextColor(34, 83, 97);
+  doc.text("Quote", margin, 22);
+  doc.setFont(undefined, "bold").setFontSize(10).setTextColor(...PDF_INK);
+  doc.text(record.quote_number || "", pageWidth - marginR, 22, { align: "right" });
 
   const colW = contentWidth / 2 - 3;
   doc.setFont(undefined, "bold").setFontSize(7.5).setTextColor(...PDF_INK_SOFT);
@@ -583,11 +576,11 @@ function generateQuotePdf(record, client) {
     money((Number(i.qty) || 0) * (Number(i.unit_price) || 0)),
   ]);
   doc.autoTable({
-    startY: y, margin: { left: margin, right: margin }, tableWidth: contentWidth,
+    startY: y, margin: { left: margin, right: marginR }, tableWidth: contentWidth,
     head: [["Description", "Qty", "Unit price", "Total"]],
     body: rows,
     theme: "grid",
-    columnStyles: { 1: { halign: "right", cellWidth: 20 }, 2: { halign: "right", cellWidth: 32 }, 3: { halign: "right", cellWidth: 32 } },
+    columnStyles: { 1: { halign: "right", cellWidth: 14 }, 2: { halign: "right", cellWidth: 26 }, 3: { halign: "right", cellWidth: 26 } },
     headStyles: { fillColor: PDF_TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9 },
     bodyStyles: { fontSize: 9, textColor: PDF_INK, cellPadding: 2.4 },
     alternateRowStyles: { fillColor: [250, 250, 249] },
@@ -595,17 +588,17 @@ function generateQuotePdf(record, client) {
   y = doc.lastAutoTable.finalY + 8;
 
   const { subtotal, vat, total } = computeTotals(items, record.vat_rate);
-  const totalsX = pageWidth - margin - 55;
+  const totalsX = pageWidth - marginR - 55;
   function totalsRow(label, value, bold) {
     doc.setFont(undefined, bold ? "bold" : "normal").setFontSize(bold ? 10.5 : 9.5).setTextColor(bold ? PDF_TEAL[0] : PDF_INK[0], bold ? PDF_TEAL[1] : PDF_INK[1], bold ? PDF_TEAL[2] : PDF_INK[2]);
     doc.text(label, totalsX, y);
-    doc.text(value, pageWidth - margin, y, { align: "right" });
+    doc.text(value, pageWidth - marginR, y, { align: "right" });
     y += bold ? 7 : 5.5;
   }
   totalsRow("Subtotal", money(subtotal), false);
   totalsRow(`VAT (${Number(record.vat_rate) || 0}%)`, money(vat), false);
   doc.setDrawColor(220, 234, 231);
-  doc.line(totalsX, y - 3, pageWidth - margin, y - 3);
+  doc.line(totalsX, y - 3, pageWidth - marginR, y - 3);
   totalsRow("Quote total", money(total), true);
   y += 6;
 
@@ -623,12 +616,12 @@ function generateQuotePdf(record, client) {
   for (let i = 1; i <= total_pages; i++) {
     doc.setPage(i);
     doc.setDrawColor(220, 234, 231);
-    doc.line(margin, pageHeight - FOOTER_H, pageWidth - margin, pageHeight - FOOTER_H);
+    doc.line(margin, pageHeight - FOOTER_H, pageWidth - marginR, pageHeight - FOOTER_H);
     doc.setFont(undefined, "normal").setFontSize(7.5).setTextColor(...PDF_INK_SOFT);
-    doc.text("Custom Electrics Ltd", margin, pageHeight - FOOTER_H + 6);
-    doc.text(new Date().toLocaleDateString("en-GB"), pageWidth / 2, pageHeight - FOOTER_H + 6, { align: "center" });
-    doc.text(`Page ${i} of ${total_pages}`, pageWidth - margin, pageHeight - FOOTER_H + 6, { align: "right" });
+    doc.text(new Date().toLocaleDateString("en-GB"), margin, pageHeight - FOOTER_H + 6);
+    doc.text(`Page ${i} of ${total_pages}`, pageWidth - marginR, pageHeight - FOOTER_H + 6, { align: "right" });
   }
+  drawSideLetterhead(doc, {});
   return doc;
 }
 

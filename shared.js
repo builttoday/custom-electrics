@@ -886,3 +886,88 @@ function initAppShell(activeId) {
   renderNav(activeId);
   requireAuth();
 }
+
+/* ============================== PDF letterhead: the side column ==============================
+   Every PDF the CRM makes (quotes, invoices, certificates) carries this teal left-hand column on every page: logo,
+   wordmark, contact details and the company details the Companies Act wants on business paper. Everything sits on
+   the column's centre line, with equal gaps between the blocks. jsPDF can only use its built-in fonts, so the logo and
+   the script wordmark are prepared once as images when the page loads; if they aren't ready, plain text stands in. */
+const PDF_SIDE = { width: 48, left: 59, right: 11, top: 16 };
+const PDF_SIDE_ART = { logo: null, wordmark: null };
+
+async function preparePdfLetterhead() {
+  try {
+    const img = new Image();
+    img.src = "logo.png";
+    await img.decode();
+    const logo = document.createElement("canvas");
+    logo.width = logo.height = 400;
+    const lc = logo.getContext("2d");
+    lc.imageSmoothingQuality = "high";
+    lc.beginPath(); lc.arc(200, 200, 199, 0, Math.PI * 2); lc.clip();
+    lc.drawImage(img, 0, 0, 400, 400);
+    PDF_SIDE_ART.logo = logo.toDataURL("image/png");
+
+    await Promise.all([document.fonts.load('700 120px "Dancing Script"'), document.fonts.load('600 48px Poppins')]);
+    const mark = document.createElement("canvas");
+    mark.width = 640; mark.height = 230;
+    const mc = mark.getContext("2d");
+    mc.textAlign = "center";
+    mc.fillStyle = "#ffffff";
+    mc.font = '700 124px "Dancing Script"';
+    mc.fillText("Custom", 320, 118);
+    mc.fillStyle = "#f0b596";
+    mc.font = '600 48px Poppins';
+    const letters = "ELECTRICS".split(""), step = 62;
+    letters.forEach((ch, i) => mc.fillText(ch, 320 + (i - (letters.length - 1) / 2) * step, 204));
+    PDF_SIDE_ART.wordmark = mark.toDataURL("image/png");
+  } catch (err) {
+    console.warn("PDF letterhead art not ready, using plain text:", err);
+  }
+}
+if (window.jspdf) preparePdfLetterhead();
+
+/* bank: the Settings bank details on money documents; without it the third block is the qualification line. */
+function drawSideLetterhead(doc, { bank } = {}) {
+  const W = PDF_SIDE.width, cx = W / 2, H = 297, LINE = 3.75, LABEL = 4.2;
+  const logoSize = 25, markW = 38, markH = markW * 230 / 640;
+  const brandH = logoSize + 3 + markH + 2 + LINE * 2;
+  doc.setFont("helvetica", "normal").setFontSize(7.8);
+  const third = bank
+    ? { label: "PAY BY TRANSFER", lines: doc.splitTextToSize(bank, W - 8) }
+    : { label: "QUALIFIED", lines: ["City & Guilds qualified", "electrician"] };
+  const blocks = [
+    { label: "CONTACT", lines: ["07734 157465", "will@customelectrics.co.uk", "customelectrics.co.uk"] },
+    third,
+    { label: "COMPANY", lines: ["Custom Electrics Ltd", "Registered in England & Wales", "no. 13198562", "Registered office:", "17 Earlswood Mead,", "Pudsey LS28 8QY"] },
+  ];
+  const heights = blocks.map(b => LABEL + b.lines.length * LINE);
+  const gap = (H - brandH - heights.reduce((a, b) => a + b, 0)) / (blocks.length + 2);
+
+  const pages = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= pages; p++) {
+    doc.setPage(p);
+    doc.setFillColor(34, 83, 97);
+    doc.rect(0, 0, W, H, "F");
+    let y = gap;
+    if (PDF_SIDE_ART.logo) doc.addImage(PDF_SIDE_ART.logo, "PNG", cx - logoSize / 2, y, logoSize, logoSize);
+    y += logoSize + 3;
+    if (PDF_SIDE_ART.wordmark) {
+      doc.addImage(PDF_SIDE_ART.wordmark, "PNG", cx - markW / 2, y, markW, markH);
+    } else {
+      doc.setFont("helvetica", "bold").setFontSize(13).setTextColor(255, 255, 255);
+      doc.text("Custom Electrics", cx, y + 7, { align: "center" });
+    }
+    y += markH + 2;
+    doc.setFont("helvetica", "normal").setFontSize(7.8).setTextColor(220, 236, 239);
+    doc.text(["Domestic & Commercial", "Electrical Contractor"], cx, y + 2.6, { align: "center", lineHeightFactor: 1.36 });
+    y += LINE * 2 + gap;
+    blocks.forEach((b, i) => {
+      doc.setFont("helvetica", "bold").setFontSize(7).setTextColor(240, 181, 150);
+      doc.text(b.label, cx, y + 2.6, { align: "center" });
+      doc.setFont("helvetica", "normal").setFontSize(7.8).setTextColor(220, 236, 239);
+      doc.text(b.lines, cx, y + LABEL + 2.6, { align: "center", lineHeightFactor: 1.36 });
+      y += heights[i] + gap;
+    });
+  }
+}

@@ -646,6 +646,7 @@ Disallow: /diary.html
 Disallow: /jobs.html
 Disallow: /clients.html
 Disallow: /leads.html
+Disallow: /quotes.html
 Disallow: /invoices.html
 Disallow: /certificates.html
 Disallow: /accounts.html

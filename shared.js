@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { id: "jobs", href: "jobs.html", icon: "\u{1F6E0}\u{FE0F}", label: "Jobs" },
   { id: "diary", href: "diary.html", icon: "\u{1F4C5}", label: "Diary" },
   { id: "certificates", href: "certificates.html", icon: "\u{1F4C4}", label: "Certificates", short: "Certs" },
+  { id: "quotes", href: "quotes.html", icon: "\u{1F4DD}", label: "Quotes", short: "Quote" },
   { id: "invoices", href: "invoices.html", icon: "\u{1F9FE}", label: "Invoices", short: "Invoice" },
   { id: "accounts", href: "accounts.html", icon: "\u{1F4B7}", label: "Accounts", short: "Money" },
   { id: "settings", href: "settings.html", icon: "\u{2699}\u{FE0F}", label: "Settings", short: "Set" },
@@ -59,7 +60,7 @@ function renderNav(activeId) {
   if (topbarTarget) topbarTarget.innerHTML = brandMarkHtml();
 
   if (tabBarTarget) {
-    // Nine tabs across a phone leaves ~39px each, so the bottom bar uses the short labels.
+    // Ten tabs across a phone leaves ~35px each, so the bottom bar uses the short labels.
     const tabItems = NAV_ITEMS.map(item => `
       <a class="nav-link${item.id === activeId ? " active" : ""}" href="${item.href}">
         <span class="nav-icon">${item.icon}</span><span>${item.short || item.label}</span>

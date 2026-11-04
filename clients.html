@@ -55,7 +55,7 @@
     <div class="page-content wide">
       <div class="page-header">
         <h1>Clients</h1>
-        <p>Every client, their contact details, and quick links into the diary and certificates.</p>
+        <p>Every client, their contact details, and quick links into the diary, quotes and certificates.</p>
       </div>
 
       <div class="client-toolbar">
@@ -205,6 +205,7 @@ function renderClients(clients) {
       <div class="client-actions">
         ${c.email ? `<button class="btn btn-accent" data-send-email="${c.id}" title="Send email">📧</button>` : ""}
         <a class="btn btn-accent" href="diary.html?client=${c.id}" title="Book in diary">📅</a>
+        <a class="btn btn-accent" href="quotes.html?client=${c.id}" title="New quote">📝</a>
         <a class="btn btn-accent" href="certificates.html?client=${c.id}" title="New certificate">📄</a>
         <button class="btn btn-ghost" data-edit="${c.id}">Edit</button>
         <button class="btn btn-danger" data-delete="${c.id}">Delete</button>

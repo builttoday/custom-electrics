@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quotes — CRM</title>
+<meta name="theme-color" content="#225361">
+<link rel="icon" type="image/png" href="logo.png">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<style>
+.quote-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.quote-search { flex: 1; min-width: 160px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 0.9rem; font-family: inherit; background: var(--surface); }
+@media (max-width: 560px) {
+  .quote-toolbar { flex-direction: column; align-items: stretch; }
+  .quote-toolbar .btn { width: 100%; }
+}
+.quote-list { display: flex; flex-direction: column; gap: 12px; }
+.quote-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: center; cursor: pointer; }
+.quote-card:hover { border-color: var(--teal); }
+.quote-main { flex: 1; min-width: 200px; }
+.quote-main h3 { margin: 0 0 4px; font-size: 1rem; }
+.quote-main .sub { font-size: 0.82rem; color: var(--ink-soft); }
+.quote-side { display: flex; align-items: center; gap: 12px; }
+.quote-total { font-family: "Poppins", sans-serif; font-weight: 700; color: var(--teal); font-size: 1.05rem; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(20,40,45,0.45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.modal-card { background: var(--surface); border-radius: var(--radius); padding: 26px; width: 100%; max-width: 460px; box-shadow: var(--shadow-lg); max-height: 90vh; overflow-y: auto; }
+.modal-card.wide { max-width: 720px; }
+.modal-card h2 { margin: 0 0 18px; font-size: 1.2rem; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; flex-wrap: wrap; }
+.hidden { display: none !important; }
+.form-status { font-size: 0.85rem; margin: 0 0 12px; min-height: 1.1em; }
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; min-width: 0; }
+.field-help { font-size: 0.76rem; color: var(--ink-soft); margin: -10px 0 14px; }
+.readonly-fill { background: var(--mint); border: 1.5px dashed var(--line); border-radius: 10px; padding: 11px 13px; font-size: 0.88rem; color: var(--ink-soft); min-height: 1.2em; }
+
+/* Line items -- a self-contained card per row (description on its own line, then
+   qty/price/total below it) rather than a fixed-pixel-column grid, so it naturally
+   reflows on any screen width instead of squeezing the description box down to
+   nothing on a phone (see chat 2026-07-31 -- "on the mobile you cant see the
+   descriptions box"). */
+.line-item-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; background: var(--page); }
+.li-desc-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.li-desc-row input { flex: 1; min-width: 0; }
+.li-meta-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.li-field { flex: 1; min-width: 88px; }
+.li-field label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); display: block; margin-bottom: 3px; }
+.li-field input { width: 100%; }
+.li-field.li-total { text-align: right; flex: 0 0 auto; min-width: 70px; }
+.line-item-total { font-size: 0.92rem; font-weight: 700; padding-top: 6px; }
+.btn-remove-line { padding: 6px 10px; font-size: 0.8rem; color: var(--danger); border: 1px solid var(--danger); background: none; border-radius: 8px; cursor: pointer; flex-shrink: 0; }
+.totals-box { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.totals-row { display: flex; gap: 20px; font-size: 0.88rem; width: 220px; justify-content: space-between; }
+.totals-row.grand { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 1rem; color: var(--teal); border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+
+/* Mobile: stack side-by-side field pairs (quote number/status, quote date/valid until,
+   etc.) instead of cramming two inputs into half-width columns (see chat
+   2026-07-31 -- "the whole quote screen is messy... needs reformatted"). */
+@media (max-width: 560px) {
+  .field-row { flex-direction: column; gap: 0; }
+  .modal-card.wide { padding: 18px; }
+  .totals-row { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <nav class="sidebar" id="sidebarNav"></nav>
+
+  <div class="main-col">
+    <div class="topbar">
+      <div id="topbarBrand"></div>
+    </div>
+
+    <div class="page-content">
+      <div class="page-header">
+        <h1>Quotes</h1>
+        <p>Price up work, then download or email the quote to the client.</p>
+      </div>
+
+      <div class="quote-toolbar">
+        <input type="text" id="quoteSearch" placeholder="🔍 Search by client or quote number..." class="quote-search">
+        <button class="btn btn-primary" id="addQuoteBtn">+ New quote</button>
+      </div>
+
+      <div id="quoteList"><div class="empty-note">Loading quotes...</div></div>
+    </div>
+  </div>
+</div>
+
+<nav class="tab-bar" id="tabBarNav"></nav>
+
+<div class="modal-backdrop hidden" id="quoteModal">
+  <div class="modal-card wide">
+    <h2 id="quoteModalTitle">New quote</h2>
+    <p class="form-status" id="formStatus"></p>
+    <form id="quoteForm">
+      <input type="hidden" id="quoteId">
+      <div class="field">
+        <label for="clientSelect">Client *</label>
+        <select id="clientSelect" required>
+          <option value="">-- Select a client --</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Quote for</label>
+        <div class="readonly-fill" id="addressFill">Select a client to auto-fill their address</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="quoteNumber">Quote number</label>
+          <input type="text" id="quoteNumber" placeholder="e.g. QUO-0001">
+        </div>
+        <div class="field">
+          <label for="statusSelect">Status</label>
+          <select id="statusSelect">
+            <option value="draft">Draft</option>
+            <option value="sent">Sent</option>
+            <option value="accepted">Accepted</option>
+            <option value="declined">Declined</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="issueDate">Quote date *</label>
+          <input type="date" id="issueDate" required>
+        </div>
+        <div class="field">
+          <label for="validUntil">Valid until</label>
+          <input type="date" id="validUntil">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Line items</label>
+        <div id="lineItemsList"></div>
+        <button type="button" class="btn btn-ghost" id="addLineItemBtn" style="margin-top:4px;">+ Add line item</button>
+      </div>
+
+      <div class="field-row">
+        <div class="field" style="max-width:160px;">
+          <label for="vatRate">VAT rate (%)</label>
+          <input type="number" step="0.01" min="0" id="vatRate" value="0">
+        </div>
+      </div>
+
+      <div class="totals-box">
+        <div class="totals-row"><span>Subtotal</span><span id="totalSubtotal">£0.00</span></div>
+        <div class="totals-row"><span>VAT</span><span id="totalVat">£0.00</span></div>
+        <div class="totals-row grand"><span>Total</span><span id="totalGrand">£0.00</span></div>
+      </div>
+
+      <div class="field">
+        <label for="notes">Notes</label>
+        <textarea id="notes" placeholder="What's included, what's not, payment terms..."></textarea>
+        <p class="field-help" style="margin:6px 0 0;">Notifiable work? Add the council's Building Control fee as a line item, so the customer sees it at quote stage.</p>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger hidden" id="deleteQuoteBtn">Delete</button>
+        <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
+        <button type="button" class="btn btn-ghost" id="downloadPdfBtn">⬇️ Download PDF</button>
+        <button type="button" class="btn btn-accent" id="saveAndEmailBtn">📧 Save &amp; email to client</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save quote</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="quoteEmailModal">
+  <div class="modal-card">
+    <h2>Send quote</h2>
+    <p class="form-status" id="quoteEmailStatus"></p>
+    <div class="field">
+      <label>To</label>
+      <div class="readonly-fill" id="quoteEmailTo"></div>
+    </div>
+    <div class="field">
+      <label for="quoteEmailSubject">Subject</label>
+      <input type="text" id="quoteEmailSubject">
+    </div>
+    <div class="field">
+      <label for="quoteEmailBody">Message</label>
+      <textarea id="quoteEmailBody" style="min-height:140px;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="quoteEmailCancelBtn">Cancel</button>
+      <button type="button" class="btn btn-primary" id="quoteEmailSendBtn">Send</button>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+initAppShell("quotes");
+
+let allQuotes = [];
+let allClients = [];
+let businessId = null;
+let editingQuoteId = null;
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function money(n) {
+  return "£" + (Number(n) || 0).toFixed(2);
+}
+
+/* ============================== Line items (add/remove rows) ============================== */
+function createLineItems(containerId, addBtnId, onChange) {
+  let items = [];
+  const container = document.getElementById(containerId);
+
+  function rowHtml(item, idx) {
+    const qty = item.qty ?? 1;
+    const price = item.unit_price ?? 0;
+    const total = (Number(qty) || 0) * (Number(price) || 0);
+    return `
+    <div class="line-item-row" data-row="${idx}">
+      <div class="li-desc-row">
+        <input type="text" data-field="description" data-idx="${idx}" value="${escapeHtml(item.description || "")}" placeholder="e.g. Consumer unit replacement">
+        <button type="button" class="btn-remove-line" data-remove="${idx}" title="Remove">✕</button>
+      </div>
+      <div class="li-meta-row">
+        <div class="li-field">
+          <label>Qty</label>
+          <input type="number" step="1" min="0" data-field="qty" data-idx="${idx}" value="${qty}">
+        </div>
+        <div class="li-field">
+          <label>Unit price (£)</label>
+          <input type="number" step="0.01" min="0" data-field="unit_price" data-idx="${idx}" value="${price}">
+        </div>
+        <div class="li-field li-total">
+          <label>Total</label>
+          <div class="line-item-total">${money(total)}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function render() {
+    if (!items.length) {
+      container.innerHTML = `<p class="field-help" style="margin:0 0 8px;">No line items yet -- click "+ Add line item" below.</p>`;
+    } else {
+      container.innerHTML = items.map((it, idx) => rowHtml(it, idx)).join("");
+    }
+    if (onChange) onChange(items);
+  }
+
+  container.addEventListener("input", (e) => {
+    const idx = e.target.dataset.idx;
+    const field = e.target.dataset.field;
+    if (idx === undefined || !field) return;
+    items[idx][field] = field === "description" ? e.target.value : e.target.value;
+    // Update just this row's total + fire onChange, without a full re-render (would steal focus)
+    const qty = Number(items[idx].qty) || 0;
+    const price = Number(items[idx].unit_price) || 0;
+    const row = container.querySelector(`[data-row="${idx}"] .line-item-total`);
+    if (row) row.textContent = money(qty * price);
+    if (onChange) onChange(items);
+  });
+  container.addEventListener("click", (e) => {
+    if (e.target.dataset.remove !== undefined && e.target.dataset.remove !== "") {
+      items.splice(Number(e.target.dataset.remove), 1);
+      render();
+    }
+  });
+  document.getElementById(addBtnId).addEventListener("click", () => {
+    items.push({ description: "", qty: 1, unit_price: 0 });
+    render();
+  });
+
+  return {
+    reset() { items = [{ description: "", qty: 1, unit_price: 0 }]; render(); },
+    load(arr) { items = Array.isArray(arr) && arr.length ? arr.map(i => Object.assign({}, i)) : [{ description: "", qty: 1, unit_price: 0 }]; render(); },
+    getData() { return items.map(i => ({ description: i.description || "", qty: Number(i.qty) || 0, unit_price: Number(i.unit_price) || 0 })); },
+  };
+}
+
+function computeTotals(lineItems, vatRate) {
+  const subtotal = lineItems.reduce((sum, i) => sum + (Number(i.qty) || 0) * (Number(i.unit_price) || 0), 0);
+  const vat = subtotal * ((Number(vatRate) || 0) / 100);
+  return { subtotal, vat, total: subtotal + vat };
+}
+
+function refreshTotals() {
+  const items = lineItemsCtrl.getData();
+  const vatRate = document.getElementById("vatRate").value;
+  const { subtotal, vat, total } = computeTotals(items, vatRate);
+  document.getElementById("totalSubtotal").textContent = money(subtotal);
+  document.getElementById("totalVat").textContent = money(vat);
+  document.getElementById("totalGrand").textContent = money(total);
+}
+
+const lineItemsCtrl = createLineItems("lineItemsList", "addLineItemBtn", refreshTotals);
+document.getElementById("vatRate").addEventListener("input", refreshTotals);
+
+/* ============================== Loading ============================== */
+async function loadClients() {
+  const { data } = await supabaseClient.from("clients").select("id, name, address, postcode, email").eq("business_id", businessId).order("name");
+  allClients = data || [];
+  const select = document.getElementById("clientSelect");
+  select.innerHTML = `<option value="">-- Select a client --</option>` +
+    allClients.map(c => `<option value="${c.id}" data-search="${escapeHtml([c.address, c.postcode].filter(Boolean).join(" "))}" data-sub="${escapeHtml([c.address, c.postcode].filter(Boolean).join(", "))}">${escapeHtml(c.name)}</option>`).join("");
+  makeClientSelectSearchable("clientSelect");
+}
+
+document.getElementById("clientSelect").addEventListener("change", (e) => {
+  const client = allClients.find(c => c.id === e.target.value);
+  document.getElementById("addressFill").textContent = client && client.address ? client.address : "No address on file for this client";
+});
+
+// A quote holds for QUOTE_VALID_DAYS by default -- moving the quote date moves the expiry with it, and the
+// expiry can still be edited by hand afterwards.
+const QUOTE_VALID_DAYS = 30;
+function validUntilFrom(dateStr) {
+  const d = new Date(dateStr + "T12:00:00");
+  if (isNaN(d)) return "";
+  d.setDate(d.getDate() + QUOTE_VALID_DAYS);
+  return d.toISOString().slice(0, 10);
+}
+document.getElementById("issueDate").addEventListener("input", (e) => {
+  document.getElementById("validUntil").value = validUntilFrom(e.target.value);
+});
+
+function nextQuoteNumber() {
+  const nums = allQuotes.map(i => {
+    const m = /^QUO-(\d+)$/.exec(i.quote_number || "");
+    return m ? Number(m[1]) : 0;
+  });
+  const next = (nums.length ? Math.max(...nums) : 0) + 1;
+  return `QUO-${String(next).padStart(4, "0")}`;
+}
+
+function renderQuotes(quotes) {
+  const target = document.getElementById("quoteList");
+  if (!quotes.length) {
+    const searching = document.getElementById("quoteSearch").value.trim();
+    target.innerHTML = searching
+      ? `<div class="empty-note">No quotes match "${escapeHtml(searching)}".</div>`
+      : `<div class="empty-note">No quotes yet -- create your first one above.</div>`;
+    return;
+  }
+  target.innerHTML = `<div class="quote-list">${quotes.map(quote => {
+    const { total } = computeTotals(quote.line_items || [], quote.vat_rate);
+    const badgeClass = quote.status === "accepted" ? "good" : quote.status === "sent" ? "pending" : "muted";
+    return `
+    <div class="quote-card" data-quote="${quote.id}">
+      <div class="quote-main">
+        <h3>${escapeHtml(quote.quote_number || "Draft quote")}</h3>
+        <div class="sub">${quote.clients ? "👤 " + escapeHtml(quote.clients.name) : "No client linked"} · ${new Date(quote.issue_date).toLocaleDateString("en-GB")}${quote.valid_until ? ` · Valid until ${new Date(quote.valid_until).toLocaleDateString("en-GB")}` : ""}</div>
+      </div>
+      <div class="quote-side">
+        <span class="quote-total">${money(total)}</span>
+        <span class="badge ${badgeClass}">${escapeHtml(quote.status)}</span>
+      </div>
+    </div>`;
+  }).join("")}</div>`;
+
+  target.querySelectorAll("[data-quote]").forEach(card => card.addEventListener("click", () => openModal(card.dataset.quote)));
+}
+
+async function loadQuotes() {
+  const target = document.getElementById("quoteList");
+  const { data, error } = await supabaseClient
+    .from("quotes")
+    .select("*, clients(name, address, email)")
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    // Page shipped before custom-electrics-add-quotes.sql was run: say so rather than show a raw PostgREST error.
+    const missing = /(does not exist|schema cache)/.test(error.message);
+    target.innerHTML = `<div class="empty-note">${missing
+      ? "Quotes aren't switched on yet: run custom-electrics-add-quotes.sql in Supabase."
+      : "Couldn't load quotes: " + escapeHtml(error.message)}</div>`;
+    return;
+  }
+  allQuotes = data || [];
+  applyQuoteFilter();
+}
+
+function applyQuoteFilter() {
+  const q = document.getElementById("quoteSearch").value.trim().toLowerCase();
+  if (!q) { renderQuotes(allQuotes); return; }
+  const filtered = allQuotes.filter(quote => {
+    const client = quote.clients ? quote.clients.name || "" : "";
+    return client.toLowerCase().includes(q) || (quote.quote_number || "").toLowerCase().includes(q);
+  });
+  renderQuotes(filtered);
+}
+document.getElementById("quoteSearch").addEventListener("input", applyQuoteFilter);
+
+/* ============================== Modal ============================== */
+function openModal(quoteId) {
+  editingQuoteId = quoteId || null;
+  const form = document.getElementById("quoteForm");
+  form.reset();
+  document.getElementById("formStatus").textContent = "";
+  document.getElementById("addressFill").textContent = "Select a client to auto-fill their address";
+  document.getElementById("quoteId").value = "";
+  document.getElementById("deleteQuoteBtn").classList.toggle("hidden", !quoteId);
+
+  if (quoteId) {
+    const quote = allQuotes.find(i => i.id === quoteId);
+    document.getElementById("quoteModalTitle").textContent = "Edit quote";
+    document.getElementById("saveBtn").textContent = "Save changes";
+    document.getElementById("quoteId").value = quote.id;
+    document.getElementById("clientSelect").value = quote.client_id || "";
+    if (quote.clients && quote.clients.address) document.getElementById("addressFill").textContent = quote.clients.address;
+    document.getElementById("quoteNumber").value = quote.quote_number || "";
+    document.getElementById("statusSelect").value = quote.status || "draft";
+    document.getElementById("issueDate").value = quote.issue_date || "";
+    document.getElementById("validUntil").value = quote.valid_until || "";
+    document.getElementById("vatRate").value = quote.vat_rate ?? 0;
+    document.getElementById("notes").value = quote.notes || "";
+    lineItemsCtrl.load(quote.line_items);
+  } else {
+    document.getElementById("quoteModalTitle").textContent = "New quote";
+    document.getElementById("saveBtn").textContent = "Save quote";
+    document.getElementById("quoteNumber").value = nextQuoteNumber();
+    document.getElementById("statusSelect").value = "draft";
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById("issueDate").value = today;
+    document.getElementById("validUntil").value = validUntilFrom(today);
+    document.getElementById("vatRate").value = 0;
+    document.getElementById("notes").value = `This quote is valid for ${QUOTE_VALID_DAYS} days.`;
+    lineItemsCtrl.reset();
+  }
+  refreshTotals();
+  document.getElementById("quoteModal").classList.remove("hidden");
+}
+function closeModal() { document.getElementById("quoteModal").classList.add("hidden"); }
+
+document.getElementById("addQuoteBtn").addEventListener("click", () => openModal(null));
+document.getElementById("cancelBtn").addEventListener("click", closeModal);
+
+document.getElementById("deleteQuoteBtn").addEventListener("click", async () => {
+  if (!editingQuoteId) return;
+  if (!confirm("Delete this quote? This can't be undone.")) return;
+  const { error } = await supabaseClient.from("quotes").delete().eq("id", editingQuoteId);
+  if (error) { alert("Couldn't delete: " + error.message); return; }
+  closeModal();
+  await loadQuotes();
+});
+
+function collectFormData() {
+  const clientId = document.getElementById("clientSelect").value;
+  const client = allClients.find(c => c.id === clientId);
+  const lineItems = lineItemsCtrl.getData().filter(i => i.description || i.qty || i.unit_price);
+  const record = {
+    client_id: clientId || null,
+    quote_number: document.getElementById("quoteNumber").value.trim() || null,
+    status: document.getElementById("statusSelect").value,
+    issue_date: document.getElementById("issueDate").value || null,
+    valid_until: document.getElementById("validUntil").value || null,
+    line_items: lineItems,
+    vat_rate: Number(document.getElementById("vatRate").value) || 0,
+    notes: document.getElementById("notes").value.trim() || null,
+  };
+  return { clientId, client, record };
+}
+
+async function saveQuoteFromForm() {
+  const { clientId, client, record } = collectFormData();
+  if (editingQuoteId) {
+    const { error } = await supabaseClient.from("quotes").update(record).eq("id", editingQuoteId);
+    if (error) throw error;
+    return { quoteId: editingQuoteId, clientId, client, record };
+  }
+  const { data: quote, error } = await supabaseClient
+    .from("quotes")
+    .insert({ ...record, business_id: businessId })
+    .select().single();
+  if (error) throw error;
+  editingQuoteId = quote.id; // subsequent saves in this same modal session (e.g. Save then Email) update, not duplicate
+  return { quoteId: quote.id, clientId, client, record };
+}
+
+document.getElementById("quoteForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const status = document.getElementById("formStatus");
+  const saveBtn = document.getElementById("saveBtn");
+  saveBtn.disabled = true; saveBtn.textContent = "Saving...";
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  try {
+    await saveQuoteFromForm();
+    closeModal();
+    await loadQuotes();
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't save: " + err.message;
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = editingQuoteId ? "Save changes" : "Save quote";
+  }
+});
+
+/* ============================== PDF generation (client-side, jsPDF) ============================== */
+const PDF_TEAL = [30, 78, 84];
+const PDF_ORANGE = [226, 145, 92];
+const PDF_MINT = [234, 243, 241];
+const PDF_INK = [22, 38, 42];
+const PDF_INK_SOFT = [92, 114, 120];
+
+function pdfQuoteFilename(record, client) {
+  const safe = (client && client.name ? client.name : "client").replace(/[^a-z0-9]+/gi, "_");
+  const num = (record.quote_number || "quote").replace(/[^a-z0-9]+/gi, "_");
+  return `${num}_${safe}.pdf`;
+}
+
+function generateQuotePdf(record, client) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const margin = 16;
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const contentWidth = pageWidth - margin * 2;
+  const HEADER_H = 26;
+  const FOOTER_H = 14;
+  let y = HEADER_H + 12;
+
+  doc.setFillColor(...PDF_TEAL);
+  doc.rect(0, 0, pageWidth, HEADER_H, "F");
+  doc.setFillColor(...PDF_ORANGE);
+  doc.rect(0, HEADER_H, pageWidth, 1.2, "F");
+  doc.setFont(undefined, "bold").setFontSize(15).setTextColor(255, 255, 255);
+  doc.text("Custom Electrics", margin, 12);
+  doc.setFont(undefined, "normal").setFontSize(8).setTextColor(234, 243, 241);
+  doc.text("Certified Domestic & Commercial Electrical Contractor", margin, 18);
+  doc.setFont(undefined, "bold").setFontSize(15).setTextColor(255, 255, 255);
+  doc.text("QUOTE", pageWidth - margin, 12, { align: "right" });
+  doc.setFont(undefined, "normal").setFontSize(8).setTextColor(234, 243, 241);
+  doc.text(record.quote_number || "", pageWidth - margin, 18, { align: "right" });
+
+  const colW = contentWidth / 2 - 3;
+  doc.setFont(undefined, "bold").setFontSize(7.5).setTextColor(...PDF_INK_SOFT);
+  doc.text("QUOTE FOR", margin, y);
+  doc.text("QUOTE DETAILS", margin + colW + 6, y);
+  y += 5;
+  doc.setFont(undefined, "normal").setFontSize(9.5).setTextColor(...PDF_INK);
+  const billLines = doc.splitTextToSize(`${client ? client.name : "--"}\n${client && client.address ? client.address : ""}`, colW);
+  doc.text(billLines, margin, y);
+
+  const detailLines = [
+    `Quote date: ${record.issue_date ? new Date(record.issue_date).toLocaleDateString("en-GB") : "--"}`,
+    `Valid until: ${record.valid_until ? new Date(record.valid_until).toLocaleDateString("en-GB") : "--"}`,
+  ];
+  doc.text(detailLines, margin + colW + 6, y);
+  y += Math.max(billLines.length, detailLines.length) * 4.6 + 10;
+
+  const items = record.line_items || [];
+  const rows = items.map(i => [
+    i.description || "--",
+    String(i.qty ?? 0),
+    money(i.unit_price ?? 0),
+    money((Number(i.qty) || 0) * (Number(i.unit_price) || 0)),
+  ]);
+  doc.autoTable({
+    startY: y, margin: { left: margin, right: margin }, tableWidth: contentWidth,
+    head: [["Description", "Qty", "Unit price", "Total"]],
+    body: rows,
+    theme: "grid",
+    columnStyles: { 1: { halign: "right", cellWidth: 20 }, 2: { halign: "right", cellWidth: 32 }, 3: { halign: "right", cellWidth: 32 } },
+    headStyles: { fillColor: PDF_TEAL, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 9 },
+    bodyStyles: { fontSize: 9, textColor: PDF_INK, cellPadding: 2.4 },
+    alternateRowStyles: { fillColor: [250, 250, 249] },
+  });
+  y = doc.lastAutoTable.finalY + 8;
+
+  const { subtotal, vat, total } = computeTotals(items, record.vat_rate);
+  const totalsX = pageWidth - margin - 55;
+  function totalsRow(label, value, bold) {
+    doc.setFont(undefined, bold ? "bold" : "normal").setFontSize(bold ? 10.5 : 9.5).setTextColor(bold ? PDF_TEAL[0] : PDF_INK[0], bold ? PDF_TEAL[1] : PDF_INK[1], bold ? PDF_TEAL[2] : PDF_INK[2]);
+    doc.text(label, totalsX, y);
+    doc.text(value, pageWidth - margin, y, { align: "right" });
+    y += bold ? 7 : 5.5;
+  }
+  totalsRow("Subtotal", money(subtotal), false);
+  totalsRow(`VAT (${Number(record.vat_rate) || 0}%)`, money(vat), false);
+  doc.setDrawColor(220, 234, 231);
+  doc.line(totalsX, y - 3, pageWidth - margin, y - 3);
+  totalsRow("Quote total", money(total), true);
+  y += 6;
+
+  if (record.notes) {
+    doc.setFont(undefined, "italic").setFontSize(8.5).setTextColor(...PDF_INK_SOFT);
+    const lines = doc.splitTextToSize(record.notes, contentWidth - 6);
+    doc.setFillColor(250, 250, 249);
+    doc.setDrawColor(220, 234, 231);
+    doc.roundedRect(margin, y - 4, contentWidth, lines.length * 4.2 + 6, 1.5, 1.5, "FD");
+    doc.text(lines, margin + 3, y);
+    y += lines.length * 4.2 + 8;
+  }
+
+  const total_pages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= total_pages; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(220, 234, 231);
+    doc.line(margin, pageHeight - FOOTER_H, pageWidth - margin, pageHeight - FOOTER_H);
+    doc.setFont(undefined, "normal").setFontSize(7.5).setTextColor(...PDF_INK_SOFT);
+    doc.text("Custom Electrics Ltd", margin, pageHeight - FOOTER_H + 6);
+    doc.text(new Date().toLocaleDateString("en-GB"), pageWidth / 2, pageHeight - FOOTER_H + 6, { align: "center" });
+    doc.text(`Page ${i} of ${total_pages}`, pageWidth - margin, pageHeight - FOOTER_H + 6, { align: "right" });
+  }
+  return doc;
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+document.getElementById("downloadPdfBtn").addEventListener("click", () => {
+  try {
+    const { client, record } = collectFormData();
+    const doc = generateQuotePdf(record, client);
+    doc.save(pdfQuoteFilename(record, client));
+  } catch (err) {
+    document.getElementById("formStatus").style.color = "var(--danger)";
+    document.getElementById("formStatus").textContent = "Couldn't generate PDF: " + err.message;
+  }
+});
+
+/* ============================== Email ============================== */
+let pendingEmailQuote = null; // { quoteId, clientId, record }
+
+function openQuoteEmailModal(quoteId, clientId, record) {
+  const client = allClients.find(c => c.id === clientId);
+  if (!client || !client.email) {
+    throw new Error("This client has no email address on file -- add one on the Clients tab first.");
+  }
+  pendingEmailQuote = { quoteId, clientId, record };
+
+  document.getElementById("quoteEmailStatus").textContent = "";
+  document.getElementById("quoteEmailTo").textContent = `${client.name} <${client.email}>`;
+  document.getElementById("quoteEmailSubject").value = `Quote ${record.quote_number || ""} from Custom Electrics Ltd`;
+  document.getElementById("quoteEmailBody").value =
+    `Hi ${client.name},\n\nPlease find attached quote ${record.quote_number || ""}` +
+    `${record.valid_until ? ", valid until " + new Date(record.valid_until).toLocaleDateString("en-GB") : ""}.\n\n` +
+    `Let us know if you have any questions, or if you'd like to go ahead.\n\nCustom Electrics Ltd`;
+  document.getElementById("quoteEmailModal").classList.remove("hidden");
+}
+function closeQuoteEmailModal() { document.getElementById("quoteEmailModal").classList.add("hidden"); }
+document.getElementById("quoteEmailCancelBtn").addEventListener("click", closeQuoteEmailModal);
+
+document.getElementById("quoteEmailSendBtn").addEventListener("click", async () => {
+  const status = document.getElementById("quoteEmailStatus");
+  const sendBtn = document.getElementById("quoteEmailSendBtn");
+  sendBtn.disabled = true; sendBtn.textContent = "Sending...";
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  try {
+    const { quoteId, clientId, record } = pendingEmailQuote;
+    const client = allClients.find(c => c.id === clientId);
+    const subject = document.getElementById("quoteEmailSubject").value.trim();
+    const body = document.getElementById("quoteEmailBody").value;
+
+    const pdfDoc = generateQuotePdf(record, client);
+    const pdfBase64 = arrayBufferToBase64(pdfDoc.output("arraybuffer"));
+    const filename = pdfQuoteFilename(record, client);
+
+    const { data, error } = await supabaseClient.functions.invoke("send-email", {
+      body: { to: client.email, subject, text: body, attachments: [{ filename, content: pdfBase64 }] },
+    });
+    if (error) {
+      let detail = error.message;
+      try {
+        if (error.context && typeof error.context.json === "function") {
+          const errBody = await error.context.json();
+          if (errBody && errBody.error) detail = errBody.error;
+        }
+      } catch (_) { /* fall back to error.message */ }
+      throw new Error(detail);
+    }
+    if (data && data.error) throw new Error(data.error);
+
+    await supabaseClient.from("emails_log").insert({
+      business_id: businessId, client_id: clientId, to_address: client.email, subject,
+      body: body + `\n\n[Attached PDF: ${filename}]`,
+    });
+    const newStatus = record.status === "draft" ? "sent" : record.status;
+    await supabaseClient.from("quotes").update({
+      emailed_at: new Date().toISOString(), pdf_generated_at: new Date().toISOString(), status: newStatus,
+    }).eq("id", quoteId);
+
+    closeQuoteEmailModal();
+    closeModal();
+    await loadQuotes();
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't send: " + err.message;
+  } finally {
+    sendBtn.disabled = false; sendBtn.textContent = "Send";
+  }
+});
+
+document.getElementById("saveAndEmailBtn").addEventListener("click", async () => {
+  const status = document.getElementById("formStatus");
+  const emailBtn = document.getElementById("saveAndEmailBtn");
+  emailBtn.disabled = true; emailBtn.textContent = "Saving...";
+  status.style.color = "var(--ink-soft)"; status.textContent = "";
+  try {
+    const { quoteId, clientId, record } = await saveQuoteFromForm();
+    openQuoteEmailModal(quoteId, clientId, record);
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't save: " + err.message;
+  } finally {
+    emailBtn.disabled = false; emailBtn.textContent = "📧 Save & email to client";
+  }
+});
+
+/* ============================== Init ============================== */
+(async function init() {
+  businessId = await getCurrentBusinessId();
+  if (!businessId) {
+    document.getElementById("quoteList").innerHTML = `<div class="empty-note">Couldn't load your business account -- try signing in again.</div>`;
+    return;
+  }
+  await loadClients();
+  await loadQuotes();
+
+  /* Deep links in from the diary's customer panel:
+       ?client=<id>     -> straight into a new quote with that customer preselected
+       ?viewClient=<id> -> just filter the list down to that customer's quotes */
+  const params = new URLSearchParams(window.location.search);
+  const viewClient = params.get("viewClient");
+  if (viewClient) {
+    const c = allClients.find(x => x.id === viewClient);
+    if (c) {
+      document.getElementById("quoteSearch").value = c.name;
+      applyQuoteFilter();
+    }
+  }
+  const preselect = params.get("client");
+  if (preselect) {
+    openModal(null);
+    const select = document.getElementById("clientSelect");
+    select.value = preselect;
+    select.dispatchEvent(new Event("change"));
+  }
+})();
+</script>
+</body>
+</html>

@@ -127,6 +127,7 @@
             <option value="sent">Sent</option>
             <option value="accepted">Accepted</option>
             <option value="declined">Declined</option>
+            <option value="invoiced">Invoiced</option>
           </select>
         </div>
       </div>
@@ -169,6 +170,7 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-danger hidden" id="deleteQuoteBtn">Delete</button>
         <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
+        <button type="button" class="btn btn-accent hidden" id="toInvoiceBtn">🧾 Turn into invoice</button>
         <button type="button" class="btn btn-ghost" id="downloadPdfBtn">⬇️ Download PDF</button>
         <button type="button" class="btn btn-accent" id="saveAndEmailBtn">📧 Save &amp; email to client</button>
         <button type="submit" class="btn btn-primary" id="saveBtn">Save quote</button>
@@ -353,7 +355,7 @@ function renderQuotes(quotes) {
   }
   target.innerHTML = `<div class="quote-list">${quotes.map(quote => {
     const { total } = computeTotals(quote.line_items || [], quote.vat_rate);
-    const badgeClass = quote.status === "accepted" ? "good" : quote.status === "sent" ? "pending" : "muted";
+    const badgeClass = quote.status === "accepted" || quote.status === "invoiced" ? "good" : quote.status === "sent" ? "pending" : "muted";
     return `
     <div class="quote-card" data-quote="${quote.id}">
       <div class="quote-main">
@@ -409,6 +411,8 @@ function openModal(quoteId) {
   document.getElementById("addressFill").textContent = "Select a client to auto-fill their address";
   document.getElementById("quoteId").value = "";
   document.getElementById("deleteQuoteBtn").classList.toggle("hidden", !quoteId);
+  const existing = quoteId ? allQuotes.find(i => i.id === quoteId) : null;
+  document.getElementById("toInvoiceBtn").classList.toggle("hidden", !existing || existing.status === "invoiced");
 
   if (quoteId) {
     const quote = allQuotes.find(i => i.id === quoteId);
@@ -501,6 +505,20 @@ document.getElementById("quoteForm").addEventListener("submit", async (e) => {
     status.textContent = "Couldn't save: " + err.message;
   } finally {
     saveBtn.disabled = false; saveBtn.textContent = editingQuoteId ? "Save changes" : "Save quote";
+  }
+});
+
+/* Saves any edits first, then hands over to invoices.html, which fills in a new invoice for checking. Nothing is
+   invoiced until it's saved there, and that save is what marks this quote "invoiced" (see fromQuote in invoices.html). */
+document.getElementById("toInvoiceBtn").addEventListener("click", async () => {
+  if (!document.getElementById("quoteForm").reportValidity()) return;
+  const status = document.getElementById("formStatus");
+  try {
+    const { quoteId } = await saveQuoteFromForm();
+    window.location.href = `invoices.html?fromQuote=${encodeURIComponent(quoteId)}`;
+  } catch (err) {
+    status.style.color = "var(--danger)";
+    status.textContent = "Couldn't save: " + err.message;
   }
 });
 

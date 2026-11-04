@@ -214,6 +214,7 @@ let allClients = [];
 let businessId = null;
 let businessBankDetails = null;
 let editingInvoiceId = null;
+let fromQuoteId = null; // the quote this new invoice was started from; marked "invoiced" once the invoice saves
 
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -401,6 +402,7 @@ document.getElementById("invoiceSearch").addEventListener("input", applyInvoiceF
 /* ============================== Modal ============================== */
 function openModal(invoiceId) {
   editingInvoiceId = invoiceId || null;
+  fromQuoteId = null;
   const form = document.getElementById("invoiceForm");
   form.reset();
   document.getElementById("formStatus").textContent = "";
@@ -483,6 +485,11 @@ async function saveInvoiceFromForm() {
   if (error) throw error;
   editingInvoiceId = inv.id; // subsequent saves in this same modal session (e.g. Save then Email) update, not duplicate
   invoiceAttachments.setParent(inv.id); // photos can now be attached without closing/reopening the modal
+  if (fromQuoteId) {
+    const { error: quoteErr } = await supabaseClient.from("quotes").update({ status: "invoiced" }).eq("id", fromQuoteId);
+    if (quoteErr) alert("Invoice saved, but the quote couldn't be marked as invoiced: " + quoteErr.message);
+    fromQuoteId = null;
+  }
   return { invoiceId: inv.id, clientId, client, record };
 }
 
@@ -733,6 +740,27 @@ document.getElementById("saveAndEmailBtn").addEventListener("click", async () =>
   }
 });
 
+/* ============================== From a quote ============================== */
+/* Fills in a new invoice for checking; nothing is saved until Save. The quote's notes stay behind: they're
+   about the quote ("valid for 30 days"), so the invoice keeps its own default payment note. */
+async function startInvoiceFromQuote(quoteId) {
+  const { data: quote, error } = await supabaseClient.from("quotes").select("*").eq("id", quoteId).eq("business_id", businessId).single();
+  if (error || !quote) { alert("Couldn't find that quote."); return; }
+  if (quote.status === "invoiced") {
+    alert(`${quote.quote_number || "This quote"} has already been turned into an invoice.`);
+    return;
+  }
+  openModal(null);
+  fromQuoteId = quote.id;
+  document.getElementById("invoiceModalTitle").textContent = `New invoice from ${quote.quote_number || "quote"}`;
+  const select = document.getElementById("clientSelect");
+  select.value = quote.client_id || "";
+  select.dispatchEvent(new Event("change"));
+  document.getElementById("vatRate").value = quote.vat_rate ?? 0;
+  lineItemsCtrl.load(quote.line_items);
+  refreshTotals();
+}
+
 /* ============================== Init ============================== */
 (async function init() {
   businessId = await getCurrentBusinessId();
@@ -756,6 +784,11 @@ document.getElementById("saveAndEmailBtn").addEventListener("click", async () =>
       document.getElementById("invoiceSearch").value = c.name;
       applyInvoiceFilter();
     }
+  }
+  const quoteId = params.get("fromQuote");
+  if (quoteId) {
+    history.replaceState(null, "", "invoices.html"); // a refresh must not start the same invoice again
+    await startInvoiceFromQuote(quoteId);
   }
   const preselect = params.get("client");
   if (preselect) {
